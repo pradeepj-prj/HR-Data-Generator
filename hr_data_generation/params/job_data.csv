@@ -1,0 +1,47 @@
+job_id,job_title,job_family,job_level
+JR001,Software Engineer I,Engineering,IC
+JR002,Software Engineer II,Engineering,IC
+JR003,Senior Software Engineer,Engineering,IC
+JR004,Staff Software Engineer,Engineering,IC
+JR005,Engineering Manager,Engineering,Manager
+JR006,Senior Engineering Manager,Engineering,Manager
+JR007,Director of Engineering,Engineering,Director
+
+JR010,Hardware Engineer I,Engineering,IC
+JR011,Hardware Engineer II,Engineering,IC
+JR012,Senior Hardware Engineer,Engineering,IC
+JR013,Principal Hardware Engineer,Engineering,IC
+JR014,Hardware Engineering Manager,Engineering,Manager
+JR015,Director of Hardware Engineering,Engineering,Director
+
+JR020,Manufacturing Engineer I,Engineering,IC
+JR021,Manufacturing Engineer II,Engineering,IC
+JR022,Senior Manufacturing Engineer,Engineering,IC
+JR023,Manufacturing Engineering Manager,Engineering,Manager
+JR024,Director of Manufacturing Engineering,Engineering,Director
+
+JR030,Quality Engineer I,Engineering,IC
+JR031,Quality Engineer II,Engineering,IC
+JR032,Senior Quality Engineer,Engineering,IC
+JR033,Quality Engineering Manager,Engineering,Manager
+JR034,Director of Quality Engineering,Engineering,Director
+
+JR100,Sales Development Representative,Sales,IC
+JR101,Account Executive,Sales,IC
+JR102,Senior Account Executive,Sales,IC
+JR103,Sales Manager,Sales,Manager
+JR104,Senior Sales Manager,Sales,Manager
+JR105,Director of Sales,Sales,Director
+
+JR200,HR Business Partner,Corporate,IC
+JR201,HR Manager,Corporate,Manager
+JR202,Director of Human Resources,Corporate,Director
+
+JR210,Finance Analyst,Corporate,IC
+JR211,Senior Finance Analyst,Corporate,IC
+JR212,Finance Manager,Corporate,Manager
+JR213,Director of Finance,Corporate,Director
+
+JR220,IT Systems Administrator,Corporate,IC
+JR221,IT Manager,Corporate,Manager
+JR222,Director of IT,Corporate,Director

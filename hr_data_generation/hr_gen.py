@@ -68,7 +68,7 @@ def generate_employees(n, employee_data):
             'first_name': first_name, 
             'last_name': last_name, 
             'hiring_date': hiring_date, 
-            'country': country, 
+            'location_id': country, 
             'employment_type': emp_type
         }
     

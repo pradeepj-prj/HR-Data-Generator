@@ -1,0 +1,62 @@
+location_id,city,country,region,latitude,longitude
+SG01,Singapore,Singapore,APJ,1.3521,103.8198
+SG02,Singapore (R&D),Singapore,APJ,1.3000,103.8000
+SG03,Singapore (Manufacturing Support),Singapore,APJ,1.3400,103.9500
+
+MLY23,Kuala Lumpur,Malaysia,APJ,3.1390,101.6869
+MLY24,Penang,Malaysia,APJ,5.4164,100.3327
+MLY25,Johor Bahru,Malaysia,APJ,1.4927,103.7414
+
+INA05,Jakarta,Indonesia,APJ,-6.2088,106.8456
+INA06,Bandung,Indonesia,APJ,-6.9175,107.6191
+INA07,Surabaya,Indonesia,APJ,-7.2575,112.7521
+
+THL03,Bangkok,Thailand,APJ,13.7563,100.5018
+THL04,Chiang Mai,Thailand,APJ,18.7883,98.9853
+
+VIE65,Ho Chi Minh City,Vietnam,APJ,10.8231,106.6297
+VIE66,Hanoi,Vietnam,APJ,21.0278,105.8342
+
+PH22,Manila,Philippines,APJ,14.5995,120.9842
+PH23,Cebu City,Philippines,APJ,10.3157,123.8854
+
+BRU56,Bandar Seri Begawan,Brunei,APJ,4.9031,114.9398
+BRU57,Kuala Belait,Brunei,APJ,4.5833,114.1833
+
+CMD09,Phnom Penh,Cambodia,APJ,11.5564,104.9282
+CMD10,Siem Reap,Cambodia,APJ,13.3633,103.8564
+
+LAO87,Vientiane,Laos,APJ,17.9757,102.6331
+LAO88,Savannakhet,Laos,APJ,16.5566,104.7595
+
+MYN88,Yangon,Myanmar,APJ,16.8409,96.1735
+MYN89,Mandalay,Myanmar,APJ,21.9588,96.0891
+
+IND43,Bangalore,India,APJ,12.9716,77.5946
+IND44,Pune,India,APJ,18.5204,73.8567
+IND45,Chennai,India,APJ,13.0827,80.2707
+IND46,Hyderabad,India,APJ,17.3850,78.4867
+
+CHN31,Shanghai,China,APJ,31.2304,121.4737
+CHN32,Shenzhen,China,APJ,22.5431,114.0579
+CHN33,Beijing,China,APJ,39.9042,116.4074
+
+TW66,Taipei,Taiwan,APJ,25.0330,121.5654
+TW67,Hsinchu,Taiwan,APJ,24.8138,120.9675
+
+HK76,Hong Kong Island,Hong Kong,APJ,22.3193,114.1694
+HK77,Kowloon,Hong Kong,APJ,22.3167,114.1833
+
+JPN03,Tokyo,Japan,APJ,35.6762,139.6503
+JPN04,Osaka,Japan,APJ,34.6937,135.5023
+JPN05,Nagoya,Japan,APJ,35.1815,136.9066
+
+KOR55,Seoul,South Korea,APJ,37.5665,126.9780
+KOR56,Busan,South Korea,APJ,35.1796,129.0756
+
+AUS78,Sydney,Australia,APJ,-33.8688,151.2093
+AUS79,Melbourne,Australia,APJ,-37.8136,144.9631
+AUS80,Brisbane,Australia,APJ,-27.4698,153.0251
+
+NZL99,Auckland,New Zealand,APJ,-36.8485,174.7633
+NZL98,Wellington,New Zealand,APJ,-41.2865,174.7762

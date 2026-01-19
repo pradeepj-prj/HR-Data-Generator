@@ -82,9 +82,90 @@ prob_contract: 0.9
 
 prob_part_time: 0.95
 
-countries: [
-    # APAC
-    "Singapore","Malaysia","Indonesia","Thailand","Vietnam","Philippines",
-    "Brunei","Cambodia","Laos","Myanmar", "India","China","Taiwan","Hong Kong","Japan", "Korea", "Austrailia", "New Zealand"
+location_id: [
+    # Singapore
+    "SG01",   # Singapore - HQ
+    "SG02",   # Singapore - R&D
+    "SG03",   # Singapore - Manufacturing Support
+
+    # Malaysia
+    "MLY23",  # Kuala Lumpur
+    "MLY24",  # Penang
+    "MLY25",  # Johor
+
+    # Indonesia
+    "INA05",  # Jakarta
+    "INA06",  # Bandung
+    "INA07",  # Surabaya
+
+    # Thailand
+    "THL03",  # Bangkok
+    "THL04",  # Chiang Mai
+
+    # Vietnam
+    "VIE65",  # Ho Chi Minh City
+    "VIE66",  # Hanoi
+
+    # Philippines
+    "PH22",   # Manila
+    "PH23",   # Cebu
+
+    # Brunei
+    "BRU56",  # Bandar Seri Begawan
+    "BRU57",  # Kuala Belait
+
+    # Cambodia
+    "CMD09",  # Phnom Penh
+    "CMD10",  # Siem Reap
+
+    # Laos
+    "LAO87",  # Vientiane
+    "LAO88",  # Savannakhet
+
+    # Myanmar
+    "MYN88",  # Yangon
+    "MYN89",  # Mandalay
+
+    # India
+    "IND43",  # Bangalore
+    "IND44",  # Pune
+    "IND45",  # Chennai
+    "IND46",  # Hyderabad
+
+    # China
+    "CHN31",  # Shanghai
+    "CHN32",  # Shenzhen
+    "CHN33",  # Beijing
+
+    # Taiwan
+    "TW66",   # Taipei
+    "TW67",   # Hsinchu
+
+    # Hong Kong
+    "HK76",   # Hong Kong Island
+    "HK77",   # Kowloon
+
+    # Japan
+    "JPN03",  # Tokyo
+    "JPN04",  # Osaka
+    "JPN05",  # Nagoya
+
+    # South Korea
+    "KOR55",  # Seoul
+    "KOR56",  # Busan
+
+    # Australia
+    "AUS78",  # Sydney
+    "AUS79",  # Melbourne
+    "AUS80",  # Brisbane
+
+    # New Zealand
+    "NZL99",  # Auckland
+    "NZL98"   # Wellington
 ]
+
+ORG_FAMILY: 
+    Engineering: ["Product Development", "Manufacturing Engineering", "Quality Engineering"]
+    Sales: ["Sales - APJ", "Sales - EMEA", "Sales - AMER"]
+    Corporate: ["Finance", "Human Resources", "Information Technology"]
 
