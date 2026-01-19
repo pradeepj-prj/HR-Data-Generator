@@ -76,3 +76,15 @@ prob_female: 0.4
 
 prob_neutral: 0.05
 
+prob_full_time: 0.8
+
+prob_contract: 0.9
+
+prob_part_time: 0.95
+
+countries: [
+    # APAC
+    "Singapore","Malaysia","Indonesia","Thailand","Vietnam","Philippines",
+    "Brunei","Cambodia","Laos","Myanmar", "India","China","Taiwan","Hong Kong","Japan", "Korea", "Austrailia", "New Zealand"
+]]
+
