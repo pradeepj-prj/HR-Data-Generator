@@ -1,0 +1,45 @@
+org_id,org_name,parent_org_id,cost_center,business_unit
+ORG001,Global Corporation,,CC1000,Corporate
+
+ORG010,Corporate Functions,ORG001,CC1100,Corporate
+ORG011,Finance,ORG010,CC1110,Corporate
+ORG011A,Finance - FP&A,ORG011,CC1111,Corporate
+ORG011B,Finance - Accounting,ORG011,CC1112,Corporate
+ORG011C,Finance - Tax,ORG011,CC1113,Corporate
+
+ORG012,Human Resources,ORG010,CC1120,Corporate
+ORG012A,HR - Talent Acquisition,ORG012,CC1121,Corporate
+ORG012B,HR - Learning & Development,ORG012,CC1122,Corporate
+ORG012C,HR - Compensation & Benefits,ORG012,CC1123,Corporate
+
+ORG013,Information Technology,ORG010,CC1130,Corporate
+ORG013A,IT - Applications,ORG013,CC1131,Corporate
+ORG013B,IT - Infrastructure,ORG013,CC1132,Corporate
+ORG013C,IT - Security,ORG013,CC1133,Corporate
+
+ORG020,Sales,ORG001,CC2000,Sales
+ORG021,Sales - APJ,ORG020,CC2100,Sales
+ORG021A,Sales - APJ Enterprise,ORG021,CC2110,Sales
+ORG021B,Sales - APJ SMB,ORG021,CC2120,Sales
+
+ORG022,Sales - EMEA,ORG020,CC2200,Sales
+ORG022A,Sales - EMEA Enterprise,ORG022,CC2210,Sales
+ORG022B,Sales - EMEA SMB,ORG022,CC2220,Sales
+
+ORG023,Sales - AMER,ORG020,CC2300,Sales
+ORG023A,Sales - AMER Enterprise,ORG023,CC2310,Sales
+ORG023B,Sales - AMER SMB,ORG023,CC2320,Sales
+
+ORG030,Engineering,ORG001,CC3000,Engineering
+ORG031,Product Development,ORG030,CC3100,Engineering
+ORG031A,Product Dev - Hardware,ORG031,CC3110,Engineering
+ORG031B,Product Dev - Software,ORG031,CC3120,Engineering
+ORG031C,Product Dev - Systems,ORG031,CC3130,Engineering
+
+ORG032,Manufacturing Engineering,ORG030,CC3200,Engineering
+ORG032A,Manufacturing Eng - Process,ORG032,CC3210,Engineering
+ORG032B,Manufacturing Eng - Automation,ORG032,CC3220,Engineering
+
+ORG033,Quality Engineering,ORG030,CC3300,Engineering
+ORG033A,Quality - Supplier,ORG033,CC3310,Engineering
+ORG033B,Quality - Customer,ORG033,CC3320,Engineering
