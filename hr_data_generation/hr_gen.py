@@ -75,7 +75,7 @@ def generate_employees(n, employee_data):
     return employees
 
 def _get_assignment_proportions(n_assignments): 
-    r_nums = np.array([np.random.rand() for _ in n_assignments])
+    r_nums = np.array([np.random.rand() for _ in range(n_assignments)])
     r_nums_sum = r_nums.sum()
     r_num_norms = r_nums/r_nums_sum
 
@@ -86,12 +86,13 @@ def assign_employees_to_org(employees: dict, org_data: pd.DataFrame):
     orgs = org_data["org_id"].to_list()
     t = date.today()
     for employee in employees.keys(): 
-        employee_assigment = {}
         num_assignments = random.choice([1, 2, 3, 4])
         props = _get_assignment_proportions(num_assignments)
+        print(props)
         delta = t - employees[employee]["hiring_date"]
         s_date = employees[employee]["hiring_date"]
         for prop in props: 
+            employee_assigment = {}
             employee_assigment["employee_id"] = employee
             employee_assigment["org_id"] = np.random.choice(orgs)
             employee_assigment["start_date"] = s_date
