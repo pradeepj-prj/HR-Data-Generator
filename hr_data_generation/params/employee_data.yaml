@@ -1,0 +1,78 @@
+male_first_names: [
+    "Aaron","Adam","Adrian","Aiden","Alan","Albert","Alex","Alexander","Andrew","Anthony",
+    "Arthur","Austin","Benjamin","Bernard","Blake","Brandon","Brian","Caleb","Cameron","Carl",
+    "Charles","Christian","Christopher","Colin","Connor","Daniel","David","Dennis","Dominic","Douglas",
+    "Dylan","Edward","Elijah","Elliot","Eric","Ethan","Evan","Felix","Francis","Frank",
+    "Gabriel","Gavin","George","Gregory","Harold","Harry","Henry","Howard","Hugh","Ian",
+    "Isaac","Jack","Jacob","James","Jason","Jeremy","Jesse","John","Jonathan","Jordan",
+    "Joseph","Joshua","Julian","Justin","Keith","Kenneth","Kevin","Kyle","Lawrence","Leo",
+    "Leonard","Liam","Logan","Louis","Lucas","Mark","Martin","Matthew","Michael","Nathan",
+    "Nicholas","Noah","Oliver","Oscar","Owen","Patrick","Paul","Peter","Philip","Quentin",
+    "Ralph","Raymond","Richard","Robert","Roger","Ronald","Ryan","Samuel","Scott","Sean",
+    "Sebastian","Simon","Stephen","Steven","Theodore","Thomas","Timothy","Toby","Trevor","Victor",
+    "Vincent","Walter","William","Zachary","Abel","Andre","Angus","Anton","Arjun","Asher",
+    "Basil","Beckett","Benedict","Bradley","Brooks","Cedric","Chandler","Clark","Cole","Curtis",
+    "Damian","Darius","Declan","Desmond","Edgar","Emmett","Eugene","Finn","Fletcher","Grant",
+    "Harrison","Jasper","Jonah","Judah","Kieran","Landon","Marshall","Miles","Mitchell","Nolan",
+    "Percy","Reed","Russell","Sawyer","Shane","Spencer","Tristan","Wesley","Zane","Calvin",
+    "Elliott","Frederick","Gideon","Harvey","Isaiah","Julius","Magnus","Maxwell","Orlando","Silas"
+]
+
+male_last_names: [
+    "Smith","Johnson","Williams","Brown","Jones","Garcia","Miller","Davis","Rodriguez","Martinez",
+    "Hernandez","Lopez","Gonzalez","Wilson","Anderson","Thomas","Taylor","Moore","Jackson","Martin",
+    "Lee","Perez","Thompson","White","Harris","Sanchez","Clark","Ramirez","Lewis","Robinson",
+    "Walker","Young","Allen","King","Wright","Scott","Torres","Nguyen","Hill","Flores",
+    "Green","Adams","Nelson","Baker","Hall","Rivera","Campbell","Mitchell","Carter","Roberts",
+    "Gomez","Phillips","Evans","Turner","Diaz","Parker","Cruz","Edwards","Collins","Reyes",
+    "Stewart","Morris","Morales","Murphy","Cook","Rogers","Gutierrez","Ortiz","Morgan","Cooper",
+    "Peterson","Bailey","Reed","Kelly","Howard","Ramos","Kim","Cox","Ward","Richardson",
+    "Watson","Brooks","Chavez","Wood","James","Bennett","Gray","Mendoza","Ruiz","Hughes",
+    "Price","Alvarez","Castillo","Sanders","Patel","Myers","Long","Ross","Foster","Jimenez",
+    "Powell","Jenkins","Perry","Russell","Sullivan","Bell","Coleman","Butler","Henderson","Barnes",
+    "Gonzales","Fisher","Vasquez","Simmons","Romero","Jordan","Patterson","Alexander","Hamilton","Graham",
+    "Reynolds","Griffin","Wallace","Moreno","West","Cole","Hayes","Bryant","Herrera","Gibson",
+    "Ellis","Tran","Medina","Aguilar","Stevens","Murray","Ford","Castro","Marshall","Owens",
+    "Harrison","Fernandez","McDonald","Woods","Washington","Kennedy","Wells","Vargas","Henry","Chen",
+    "Freeman","Webb","Tucker","Guzman","Burns","Crawford","Olson","Simpson","Porter","Hunter",
+    "Gordon","Mendez","Silva","Shaw","Snyder","Mason","Dixon","Munoz","Hunt","Hicks",
+    "Holmes","Palmer","Wagner","Black","Robertson","Boyd","Rose","Stone","Salazar","Fox"
+]
+
+female_names: [
+    "Abigail","Ada","Adeline","Aisha","Alexandra","Alice","Alicia","Amelia","Amy","Ana",
+    "Ananya","Andrea","Angela","Anita","Anna","Anne","Ariana","Audrey","Ava","Barbara",
+    "Beatrice","Bella","Beth","Bianca","Bridget","Camila","Carla","Carmen","Caroline","Catherine",
+    "Charlotte","Chloe","Clara","Daisy","Danielle","Deborah","Diana","Dorothy","Eleanor","Elena",
+    "Elizabeth","Ella","Emily","Emma","Erica","Eva","Evelyn","Faith","Fiona","Florence",
+    "Frances","Gabriella","Georgia","Grace","Hannah","Harper","Hazel","Heidi","Helen","Irene",
+    "Iris","Isabel","Isabella","Jade","Jane","Jasmine","Jennifer","Jessica","Joanna","Julia",
+    "Juliet","Katherine","Kayla","Keira","Kimberly","Laura","Leah","Lillian","Lily","Linda",
+    "Lucy","Luna","Madeline","Margaret","Maria","Marie","Maya","Megan","Melissa","Michelle",
+    "Mila","Miranda","Monica","Naomi","Natalie","Nicole","Nina","Nora","Olivia","Paige",
+    "Patricia","Penelope","Phoebe","Rachel","Rebecca","Rose","Ruby","Samantha","Sara","Sarah",
+    "Savannah","Sophia","Stella","Stephanie","Susan","Tara","Teresa","Tessa","Vanessa","Victoria",
+    "Violet","Wendy","Yara","Zara","Zoe","Alina","Amrita","Anika","Aria","Brianna",
+    "Celeste","Daphne","Eliza","Emilia","Esme","Freya","Gemma","Helena","Imogen","Josephine",
+    "Lydia","Matilda","Noelle","Ophelia","Priya","Rhea","Sienna","Sonya","Sylvia","Thea",
+    "Uma","Valerie","Willow","Ximena","Yvonne","Alyssa","Cecilia","Evelina","Isla","Rosalie",
+    "Serena","Veronica","Anushka","Meera","Kavya","Shreya","Pooja","Nisha","Ritu","Neha"
+]
+
+neutral_names: [
+    "Alex","Jordan","Taylor","Casey","Morgan","Riley","Jamie","Avery","Quinn","Parker",
+    "Sam","Lee","Kai","Ash","Drew","Blake","Sky","Jay","Rowan","Reese",
+    "Hayden","Finley","Emerson","Sawyer","Logan","River","Phoenix","Dakota","Lennon","Elliott",
+    "Ari","Noor","Sasha","Robin","Kim","Andrea","Mika","Dani","Alexei","Shiloh",
+    "Sage","Linden","Indigo","Ocean","Winter","Storm","Cedar","Brook","Ashen","Zen"
+]
+
+
+age_min: 21
+
+age_max: 65
+
+prob_female: 0.4
+
+prob_neutral: 0.05
+
