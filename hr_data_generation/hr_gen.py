@@ -25,7 +25,7 @@ def get_emp_type_country(employee_data: dict):
     else: 
         emp_type = "Part time"
 
-    country = random.choice(employee_data["countries"])
+    country = random.choice(employee_data["location_id"])
     
     return emp_type, country
 
@@ -56,13 +56,14 @@ def get_hiring_date(age):
         return hiring_date
     
 def generate_employees(n, employee_data): 
-    employees = {}
+    employees = []
     for i in range(n): 
         age, gender = get_age_gender(employee_data)
         first_name, last_name = get_name(gender, employee_data)
         hiring_date = get_hiring_date(age)
         emp_type, country = get_emp_type_country(employee_data)
-        employees[i+1] = {
+        employee = {
+            'employee_id': f"{country}{i}",
             'age': age, 
             'gender': gender, 
             'first_name': first_name, 
@@ -71,6 +72,7 @@ def generate_employees(n, employee_data):
             'location_id': country, 
             'employment_type': emp_type
         }
+        employees.append(employee)
     
     return employees
 
@@ -81,26 +83,31 @@ def _get_assignment_proportions(n_assignments):
 
     return list(r_num_norms)
 
-def assign_employees_to_org(employees: dict, org_data: pd.DataFrame): 
-    employee_assigments = []
-    orgs = org_data["org_id"].to_list()
-    t = date.today()
-    for employee in employees.keys(): 
-        num_assignments = random.choice([1, 2, 3, 4])
-        props = _get_assignment_proportions(num_assignments)
-        print(props)
-        delta = t - employees[employee]["hiring_date"]
-        s_date = employees[employee]["hiring_date"]
-        for prop in props: 
-            employee_assigment = {}
-            employee_assigment["employee_id"] = employee
-            employee_assigment["org_id"] = np.random.choice(orgs)
-            employee_assigment["start_date"] = s_date
-            e_date = s_date + prop*delta 
-            employee_assigment["end_date"] = e_date
-            s_date = e_date
-            employee_assigments.append(employee_assigment)
-    return employee_assigments
+## the function below has to change as it is too basic
+# def assign_employees_to_org(employees: dict, org_data: pd.DataFrame): 
+#     employee_assigments = []
+#     orgs = org_data["org_id"].to_list()
+#     t = date.today()
+#     for employee in employees.keys(): 
+#         num_assignments = random.choice([1, 2, 3, 4])
+#         props = _get_assignment_proportions(num_assignments)
+#         print(props)
+#         delta = t - employees[employee]["hiring_date"]
+#         s_date = employees[employee]["hiring_date"]
+#         for prop in props: 
+#             employee_assigment = {}
+#             employee_assigment["employee_id"] = employee
+#             employee_assigment["org_id"] = np.random.choice(orgs)
+#             employee_assigment["start_date"] = s_date
+#             e_date = s_date + prop*delta 
+#             employee_assigment["end_date"] = e_date
+#             s_date = e_date
+#             employee_assigments.append(employee_assigment)
+#     return employee_assigments
+
+# def assign_employees_to_org(employees, org_data, job_data): 
+
+
             
         
 

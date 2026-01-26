@@ -1,47 +1,47 @@
-job_id,job_title,job_family,job_level
-JR001,Software Engineer I,Engineering,IC
-JR002,Software Engineer II,Engineering,IC
-JR003,Senior Software Engineer,Engineering,IC
-JR004,Staff Software Engineer,Engineering,IC
-JR005,Engineering Manager,Engineering,Manager
-JR006,Senior Engineering Manager,Engineering,Manager
-JR007,Director of Engineering,Engineering,Director
+job_id,job_title,job_family,job_level,seniority_level
+JR001,Software Engineer I,Engineering,IC,1
+JR002,Software Engineer II,Engineering,IC,2
+JR003,Senior Software Engineer,Engineering,IC,3
+JR004,Staff Software Engineer,Engineering,IC,4
+JR005,Engineering Manager,Engineering,Manager,4
+JR006,Senior Engineering Manager,Engineering,Manager,5
+JR007,Director of Engineering,Engineering,Director,5
 
-JR010,Hardware Engineer I,Engineering,IC
-JR011,Hardware Engineer II,Engineering,IC
-JR012,Senior Hardware Engineer,Engineering,IC
-JR013,Principal Hardware Engineer,Engineering,IC
-JR014,Hardware Engineering Manager,Engineering,Manager
-JR015,Director of Hardware Engineering,Engineering,Director
+JR010,Hardware Engineer I,Engineering,IC,1
+JR011,Hardware Engineer II,Engineering,IC,2
+JR012,Senior Hardware Engineer,Engineering,IC,3
+JR013,Principal Hardware Engineer,Engineering,IC,4
+JR014,Hardware Engineering Manager,Engineering,Manager,4
+JR015,Director of Hardware Engineering,Engineering,Director,5
 
-JR020,Manufacturing Engineer I,Engineering,IC
-JR021,Manufacturing Engineer II,Engineering,IC
-JR022,Senior Manufacturing Engineer,Engineering,IC
-JR023,Manufacturing Engineering Manager,Engineering,Manager
-JR024,Director of Manufacturing Engineering,Engineering,Director
+JR020,Manufacturing Engineer I,Engineering,IC,1
+JR021,Manufacturing Engineer II,Engineering,IC,2
+JR022,Senior Manufacturing Engineer,Engineering,IC,3
+JR023,Manufacturing Engineering Manager,Engineering,Manager,4
+JR024,Director of Manufacturing Engineering,Engineering,Director,5
 
-JR030,Quality Engineer I,Engineering,IC
-JR031,Quality Engineer II,Engineering,IC
-JR032,Senior Quality Engineer,Engineering,IC
-JR033,Quality Engineering Manager,Engineering,Manager
-JR034,Director of Quality Engineering,Engineering,Director
+JR030,Quality Engineer I,Engineering,IC,1
+JR031,Quality Engineer II,Engineering,IC,2
+JR032,Senior Quality Engineer,Engineering,IC,3
+JR033,Quality Engineering Manager,Engineering,Manager,4
+JR034,Director of Quality Engineering,Engineering,Director,5
 
-JR100,Sales Development Representative,Sales,IC
-JR101,Account Executive,Sales,IC
-JR102,Senior Account Executive,Sales,IC
-JR103,Sales Manager,Sales,Manager
-JR104,Senior Sales Manager,Sales,Manager
-JR105,Director of Sales,Sales,Director
+JR100,Sales Development Representative,Sales,IC,1
+JR101,Account Executive,Sales,IC,2
+JR102,Senior Account Executive,Sales,IC,3
+JR103,Sales Manager,Sales,Manager,4
+JR104,Senior Sales Manager,Sales,Manager,5
+JR105,Director of Sales,Sales,Director,5
 
-JR200,HR Business Partner,Corporate,IC
-JR201,HR Manager,Corporate,Manager
-JR202,Director of Human Resources,Corporate,Director
+JR200,HR Business Partner,Corporate,IC,3
+JR201,HR Manager,Corporate,Manager,4
+JR202,Director of Human Resources,Corporate,Director,5
 
-JR210,Finance Analyst,Corporate,IC
-JR211,Senior Finance Analyst,Corporate,IC
-JR212,Finance Manager,Corporate,Manager
-JR213,Director of Finance,Corporate,Director
+JR210,Finance Analyst,Corporate,IC,2
+JR211,Senior Finance Analyst,Corporate,IC,3
+JR212,Finance Manager,Corporate,Manager,4
+JR213,Director of Finance,Corporate,Director,5
 
-JR220,IT Systems Administrator,Corporate,IC
-JR221,IT Manager,Corporate,Manager
-JR222,Director of IT,Corporate,Director
+JR220,IT Systems Administrator,Corporate,IC,2
+JR221,IT Manager,Corporate,Manager,4
+JR222,Director of IT,Corporate,Director,5
