@@ -68,19 +68,19 @@ neutral_names: [
 ]
 
 
-age_min: 21
+age_mean: 38
 
-age_max: 65
+age_spread: 15
 
 prob_female: 0.4
 
 prob_neutral: 0.05
 
-prob_full_time: 0.8
+prob_full_time: 0.7
 
-prob_contract: 0.9
+prob_contract: 0.8
 
-prob_part_time: 0.95
+prob_part_time: 0.9
 
 location_id: [
     # Singapore
@@ -168,4 +168,28 @@ ORG_FAMILY:
     Engineering: ["Product Development", "Manufacturing Engineering", "Quality Engineering"]
     Sales: ["Sales - APJ", "Sales - EMEA", "Sales - AMER"]
     Corporate: ["Finance", "Human Resources", "Information Technology"]
+    Global: ["Global Corporation"]
+
+leader_profile: 
+    age_min: 45
+    age_max: 65
+    locations: ["SG01", "JPN03", "AUS78", "CHN31", "NZL99"] # where the leaders are from
+
+band_4_profile: 
+    age_min: 40
+    age_max: 65
+
+band_3_profile: 
+    age_min: 30
+    age_max: 60
+
+band_2_profile: 
+    age_min: 22
+    age_max: 45
+
+band_1_profile: 
+    age_min: 21
+    age_max: 40
+
+
 

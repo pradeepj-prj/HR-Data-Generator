@@ -4,7 +4,8 @@ import random
 import pandas as pd
 
 def get_age_gender(employee_data: dict): 
-    age = np.random.randint(low=employee_data["age_min"], high=employee_data["age_max"])
+    age = np.random.normal(loc=employee_data["age_mean"], scale=employee_data["age_spread"])
+    age = int(age)
 
     gender_roll = np.random.rand()
     if gender_roll < employee_data["prob_neutral"]: 
@@ -18,9 +19,9 @@ def get_age_gender(employee_data: dict):
 
 def get_emp_type_country(employee_data: dict): 
     roll = np.random.rand()
-    if roll < 0.9: 
+    if roll < employee_data["prob_full_time"]: 
         emp_type = "Full time"
-    elif roll < 0.95: 
+    elif roll < employee_data["prob_contract"]: 
         emp_type = "Contract"
     else: 
         emp_type = "Part time"
@@ -76,36 +77,7 @@ def generate_employees(n, employee_data):
     
     return employees
 
-def _get_assignment_proportions(n_assignments): 
-    r_nums = np.array([np.random.rand() for _ in range(n_assignments)])
-    r_nums_sum = r_nums.sum()
-    r_num_norms = r_nums/r_nums_sum
 
-    return list(r_num_norms)
-
-## the function below has to change as it is too basic
-# def assign_employees_to_org(employees: dict, org_data: pd.DataFrame): 
-#     employee_assigments = []
-#     orgs = org_data["org_id"].to_list()
-#     t = date.today()
-#     for employee in employees.keys(): 
-#         num_assignments = random.choice([1, 2, 3, 4])
-#         props = _get_assignment_proportions(num_assignments)
-#         print(props)
-#         delta = t - employees[employee]["hiring_date"]
-#         s_date = employees[employee]["hiring_date"]
-#         for prop in props: 
-#             employee_assigment = {}
-#             employee_assigment["employee_id"] = employee
-#             employee_assigment["org_id"] = np.random.choice(orgs)
-#             employee_assigment["start_date"] = s_date
-#             e_date = s_date + prop*delta 
-#             employee_assigment["end_date"] = e_date
-#             s_date = e_date
-#             employee_assigments.append(employee_assigment)
-#     return employee_assigments
-
-# def assign_employees_to_org(employees, org_data, job_data): 
 
 
             
