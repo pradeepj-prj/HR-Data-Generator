@@ -6,6 +6,13 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+# Default: Tech/Engineering company distribution
+DEFAULT_BU_DISTRIBUTION = {
+    "Engineering": 0.50,  # 50% of workforce (largest in tech companies)
+    "Sales": 0.30,        # 30% of workforce
+    "Corporate": 0.20,    # 20% of workforce (HR, Finance, IT, etc.)
+}
+
 
 def get_age_for_band(
     band: int, employee_data: dict[str, Any], rng: np.random.Generator
@@ -159,9 +166,10 @@ def generate_employees_with_bands(
     job_data: pd.DataFrame,
     rng: np.random.Generator,
     start_date: date | None = None,
+    bu_distribution: dict[str, float] | None = None,
 ) -> pd.DataFrame:
     """
-    Generate employees with seniority-appropriate ages.
+    Generate employees with seniority-appropriate ages and business unit assignments.
 
     Distributes employees across seniority levels:
     - Level 5 (Director): ~5%
@@ -169,6 +177,17 @@ def generate_employees_with_bands(
     - Level 3 (Senior): ~25%
     - Level 2 (Mid): ~30%
     - Level 1 (Junior): ~25%
+
+    Args:
+        n: Number of employees to generate
+        employee_data: Employee configuration data
+        job_data: Job reference data
+        rng: Random number generator
+        start_date: Reference date for hire dates (default: today)
+        bu_distribution: Business unit distribution dict (default: 50% Eng, 30% Sales, 20% Corp)
+
+    Returns:
+        DataFrame with employee data including _seniority_level and _business_unit columns
     """
     if start_date is None:
         start_date = date.today()
@@ -187,8 +206,12 @@ def generate_employees_with_bands(
         remaining -= count
     band_counts[1] = max(0, remaining)
 
+    # Assign business units for each seniority band
+    bu_assignments = assign_business_units(n, band_counts, rng, bu_distribution)
+
     employees = []
     emp_idx = 0
+    band_indices: dict[int, int] = {band: 0 for band in band_counts}
 
     for band, count in sorted(band_counts.items(), reverse=True):
         for _ in range(count):
@@ -207,6 +230,10 @@ def generate_employees_with_bands(
             emp_type = get_employment_type(employee_data, rng)
             location = get_location(employee_data, rng)
 
+            # Get business unit assignment for this employee
+            business_unit = bu_assignments[band][band_indices[band]]
+            band_indices[band] += 1
+
             employees.append({
                 "employee_id": f"EMP{emp_idx+1:06d}",
                 "first_name": first_name,
@@ -218,7 +245,83 @@ def generate_employees_with_bands(
                 "employment_status": "Active",
                 "location_id": location,
                 "_seniority_level": band,
+                "_business_unit": business_unit,
             })
             emp_idx += 1
 
     return pd.DataFrame(employees)
+
+
+def assign_business_units(
+    n_employees: int,
+    seniority_counts: dict[int, int],
+    rng: np.random.Generator,
+    distribution: dict[str, float] | None = None,
+) -> dict[int, list[str]]:
+    """
+    Distribute employees across business units by seniority band.
+
+    Ensures each business unit has leadership coverage (at least one level-4+
+    employee when possible).
+
+    Args:
+        n_employees: Total number of employees
+        seniority_counts: Dict mapping seniority level -> count of employees
+        rng: Random number generator
+        distribution: Business unit distribution (default: 50% Eng, 30% Sales, 20% Corp)
+
+    Returns:
+        Dict mapping seniority level -> list of business unit assignments
+        (one per employee in that band)
+    """
+    if distribution is None:
+        distribution = DEFAULT_BU_DISTRIBUTION
+
+    # Normalize distribution in case it doesn't sum to 1.0
+    total = sum(distribution.values())
+    normalized_dist = {k: v / total for k, v in distribution.items()}
+    business_units = list(normalized_dist.keys())
+    probabilities = list(normalized_dist.values())
+
+    result: dict[int, list[str]] = {}
+
+    # For leadership levels (5 and 4), ensure each BU has coverage
+    for level in sorted(seniority_counts.keys(), reverse=True):
+        count = seniority_counts[level]
+        if count == 0:
+            result[level] = []
+            continue
+
+        assignments = []
+
+        if level >= 4:
+            # Ensure at least one leader in each BU that has significant presence
+            # Reserve one slot per BU if we have enough employees at this level
+            bus_needing_leaders = [
+                bu for bu, prob in normalized_dist.items()
+                if prob >= 0.1  # BUs with at least 10% of workforce
+            ]
+
+            # Assign guaranteed leaders first (if we have enough)
+            guaranteed_count = min(len(bus_needing_leaders), count)
+            for i in range(guaranteed_count):
+                assignments.append(bus_needing_leaders[i % len(bus_needing_leaders)])
+
+            # Assign remaining employees proportionally
+            remaining = count - guaranteed_count
+            if remaining > 0:
+                extra_assignments = rng.choice(
+                    business_units, size=remaining, p=probabilities
+                ).tolist()
+                assignments.extend(extra_assignments)
+        else:
+            # For non-leadership levels, assign purely by distribution
+            assignments = rng.choice(
+                business_units, size=count, p=probabilities
+            ).tolist()
+
+        # Shuffle to avoid predictable ordering
+        rng.shuffle(assignments)
+        result[level] = assignments
+
+    return result

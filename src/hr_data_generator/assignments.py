@@ -37,14 +37,35 @@ def generate_initial_job_assignment(
     job_data: pd.DataFrame,
     rng: np.random.Generator,
 ) -> dict:
-    """Generate initial job assignment for an employee."""
+    """Generate initial job assignment for an employee.
+
+    Filters jobs to match employee's seniority level and business unit.
+    Job family maps 1:1 with business unit (Engineering, Sales, Corporate).
+    """
     seniority = employee.get("_seniority_level", 1)
+    business_unit = employee.get("_business_unit", None)
+
+    # Start with jobs matching seniority
     matching_jobs = get_jobs_for_seniority(seniority, job_data)
 
+    # Filter by business unit if available (job_family == business_unit)
+    if business_unit is not None and len(matching_jobs) > 0:
+        bu_jobs = matching_jobs[matching_jobs["job_family"] == business_unit]
+        if len(bu_jobs) > 0:
+            matching_jobs = bu_jobs
+
+    # Fallback: try lower seniority jobs in same BU
     if len(matching_jobs) == 0:
-        matching_jobs = job_data[job_data["seniority_level"] <= seniority]
-        if len(matching_jobs) == 0:
-            matching_jobs = job_data
+        fallback_jobs = job_data[job_data["seniority_level"] <= seniority]
+        if business_unit is not None:
+            bu_fallback = fallback_jobs[fallback_jobs["job_family"] == business_unit]
+            if len(bu_fallback) > 0:
+                fallback_jobs = bu_fallback
+        matching_jobs = fallback_jobs
+
+    # Final fallback: any job
+    if len(matching_jobs) == 0:
+        matching_jobs = job_data
 
     job_idx = rng.integers(0, len(matching_jobs))
     job = matching_jobs.iloc[job_idx]

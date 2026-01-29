@@ -8,8 +8,8 @@ import pandas as pd
 
 from .assignments import generate_job_assignments, generate_org_assignments
 from .compensation import generate_compensation_records
-from .employee import generate_employees_with_bands
-from .hierarchy import build_manager_hierarchy, validate_hierarchy
+from .employee import DEFAULT_BU_DISTRIBUTION, generate_employees_with_bands
+from .hierarchy import build_manager_hierarchy, validate_hierarchy, validate_manager_bu_alignment
 from .loader import load_all_reference_data, load_employee_data, load_job_data, load_org_data
 from .performance import generate_performance_reviews
 
@@ -37,6 +37,7 @@ class HRDataGenerator:
         end_date: str | date | None = None,
         include_performance: bool = True,
         include_compensation: bool = True,
+        bu_distribution: dict[str, float] | None = None,
     ) -> dict[str, pd.DataFrame]:
         """
         Generate complete HR dataset.
@@ -47,6 +48,8 @@ class HRDataGenerator:
             end_date: Simulation end date (default: today)
             include_performance: Generate performance reviews
             include_compensation: Generate compensation records
+            bu_distribution: Business unit distribution dict mapping BU names to
+                proportions (default: 50% Engineering, 30% Sales, 20% Corporate)
 
         Returns:
             Dictionary of DataFrames:
@@ -75,6 +78,7 @@ class HRDataGenerator:
             self.job_data,
             self.rng,
             start_date=end_date,
+            bu_distribution=bu_distribution,
         )
 
         employees = build_manager_hierarchy(
@@ -85,6 +89,10 @@ class HRDataGenerator:
         if errors:
             raise ValueError(f"Hierarchy validation failed: {errors}")
 
+        bu_errors = validate_manager_bu_alignment(employees)
+        if bu_errors:
+            raise ValueError(f"Business unit alignment validation failed: {bu_errors}")
+
         job_assignments = generate_job_assignments(
             employees, self.job_data, self.rng, end_date=end_date
         )
@@ -94,7 +102,7 @@ class HRDataGenerator:
         )
 
         result = {
-            "employee": employees.drop(columns=["_seniority_level"]),
+            "employee": employees.drop(columns=["_seniority_level", "_business_unit"]),
             "employee_job_assignment": job_assignments,
             "employee_org_assignment": org_assignments,
             "organization_unit": self.reference_data["organization_unit"],
@@ -127,6 +135,7 @@ def generate_hr_data(
     seed: int | None = None,
     include_performance: bool = True,
     include_compensation: bool = True,
+    bu_distribution: dict[str, float] | None = None,
 ) -> dict[str, pd.DataFrame]:
     """
     Generate complete HR dataset.
@@ -140,6 +149,9 @@ def generate_hr_data(
         seed: Random seed for reproducibility
         include_performance: Generate performance reviews
         include_compensation: Generate compensation records
+        bu_distribution: Business unit distribution dict mapping BU names to
+            proportions (default: 50% Engineering, 30% Sales, 20% Corporate).
+            Example: {"Engineering": 0.30, "Sales": 0.50, "Corporate": 0.20}
 
     Returns:
         Dictionary of DataFrames:
@@ -157,6 +169,13 @@ def generate_hr_data(
         >>> data = generate_hr_data(n_employees=500, seed=42)
         >>> employees = data['employee']
         >>> job_history = data['employee_job_assignment']
+
+        # Custom distribution for a sales-heavy org
+        >>> data = generate_hr_data(
+        ...     n_employees=100,
+        ...     seed=42,
+        ...     bu_distribution={"Engineering": 0.30, "Sales": 0.50, "Corporate": 0.20}
+        ... )
     """
     generator = HRDataGenerator(seed=seed)
     return generator.generate(
@@ -165,4 +184,5 @@ def generate_hr_data(
         end_date=end_date,
         include_performance=include_performance,
         include_compensation=include_compensation,
+        bu_distribution=bu_distribution,
     )
