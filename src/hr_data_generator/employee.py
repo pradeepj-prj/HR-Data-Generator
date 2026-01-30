@@ -155,6 +155,8 @@ def generate_employee_demographics(
             "employment_type": emp_type,
             "employment_status": "Active",
             "location_id": location,
+            "termination_date": None,
+            "termination_reason": None,
         })
 
     return pd.DataFrame(employees)
@@ -244,6 +246,8 @@ def generate_employees_with_bands(
                 "employment_type": emp_type,
                 "employment_status": "Active",
                 "location_id": location,
+                "termination_date": None,
+                "termination_reason": None,
                 "_seniority_level": band,
                 "_business_unit": business_unit,
             })

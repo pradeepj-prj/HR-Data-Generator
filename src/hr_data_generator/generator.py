@@ -7,6 +7,11 @@ import numpy as np
 import pandas as pd
 
 from .assignments import generate_job_assignments, generate_org_assignments
+from .attrition import (
+    apply_attrition,
+    close_records_at_termination,
+    filter_reviews_by_termination,
+)
 from .compensation import generate_compensation_records
 from .employee import DEFAULT_BU_DISTRIBUTION, generate_employees_with_bands
 from .hierarchy import build_manager_hierarchy, validate_hierarchy, validate_manager_bu_alignment
@@ -37,6 +42,9 @@ class HRDataGenerator:
         end_date: str | date | None = None,
         include_performance: bool = True,
         include_compensation: bool = True,
+        include_attrition: bool = True,
+        attrition_rate: float = 0.12,
+        noise_std: float = 0.2,
         bu_distribution: dict[str, float] | None = None,
     ) -> dict[str, pd.DataFrame]:
         """
@@ -48,12 +56,18 @@ class HRDataGenerator:
             end_date: Simulation end date (default: today)
             include_performance: Generate performance reviews
             include_compensation: Generate compensation records
+            include_attrition: Apply employee attrition/turnover (default: True)
+            attrition_rate: Base annual attrition rate (default: 0.12 = 12%)
+            noise_std: Noise standard deviation for attrition probability (default: 0.2)
+                - Low (0.1): ML accuracy ~90%+
+                - Medium (0.2): ML accuracy ~80-85%
+                - High (0.3): ML accuracy ~70-75%
             bu_distribution: Business unit distribution dict mapping BU names to
                 proportions (default: 50% Engineering, 30% Sales, 20% Corporate)
 
         Returns:
             Dictionary of DataFrames:
-            - employee: Hub table with manager hierarchy
+            - employee: Hub table with manager hierarchy and termination fields
             - employee_org_assignment: Time-variant org placements
             - employee_job_assignment: Time-variant job history
             - employee_compensation: Time-variant salary records
@@ -125,6 +139,45 @@ class HRDataGenerator:
             )
             result["employee_performance"] = performance
 
+        # Apply attrition after all time-variant data is generated
+        if include_attrition:
+            performance_for_attrition = result.get("employee_performance")
+
+            # Apply attrition to employees
+            employees_with_attrition = apply_attrition(
+                employees=result["employee"],
+                performance_reviews=performance_for_attrition,
+                job_assignments=result["employee_job_assignment"],
+                rng=self.rng,
+                start_year=start_date.year,
+                end_year=end_date.year,
+                attrition_rate=attrition_rate,
+                noise_std=noise_std,
+            )
+            result["employee"] = employees_with_attrition
+
+            # Close time-variant records at termination
+            result["employee_job_assignment"] = close_records_at_termination(
+                result["employee_job_assignment"],
+                employees_with_attrition,
+            )
+            result["employee_org_assignment"] = close_records_at_termination(
+                result["employee_org_assignment"],
+                employees_with_attrition,
+            )
+
+            if "employee_compensation" in result:
+                result["employee_compensation"] = close_records_at_termination(
+                    result["employee_compensation"],
+                    employees_with_attrition,
+                )
+
+            if "employee_performance" in result:
+                result["employee_performance"] = filter_reviews_by_termination(
+                    result["employee_performance"],
+                    employees_with_attrition,
+                )
+
         return result
 
 
@@ -135,6 +188,9 @@ def generate_hr_data(
     seed: int | None = None,
     include_performance: bool = True,
     include_compensation: bool = True,
+    include_attrition: bool = True,
+    attrition_rate: float = 0.12,
+    noise_std: float = 0.2,
     bu_distribution: dict[str, float] | None = None,
 ) -> dict[str, pd.DataFrame]:
     """
@@ -149,13 +205,20 @@ def generate_hr_data(
         seed: Random seed for reproducibility
         include_performance: Generate performance reviews
         include_compensation: Generate compensation records
+        include_attrition: Apply employee attrition/turnover (default: True)
+        attrition_rate: Base annual attrition rate (default: 0.12 = 12%)
+        noise_std: Noise standard deviation for attrition probability.
+            Controls ML prediction difficulty:
+            - Low (0.1): ML accuracy ~90%+
+            - Medium (0.2): ML accuracy ~80-85%
+            - High (0.3): ML accuracy ~70-75%
         bu_distribution: Business unit distribution dict mapping BU names to
             proportions (default: 50% Engineering, 30% Sales, 20% Corporate).
             Example: {"Engineering": 0.30, "Sales": 0.50, "Corporate": 0.20}
 
     Returns:
         Dictionary of DataFrames:
-        - employee: Hub table with manager hierarchy
+        - employee: Hub table with manager hierarchy and termination fields
         - employee_org_assignment: Time-variant org placements
         - employee_job_assignment: Time-variant job history
         - employee_compensation: Time-variant salary records (if include_compensation=True)
@@ -170,12 +233,19 @@ def generate_hr_data(
         >>> employees = data['employee']
         >>> job_history = data['employee_job_assignment']
 
+        # Check attrition rate
+        >>> terminated = employees[employees['termination_date'].notna()]
+        >>> print(f"Attrition: {len(terminated)/len(employees):.1%}")
+
         # Custom distribution for a sales-heavy org
         >>> data = generate_hr_data(
         ...     n_employees=100,
         ...     seed=42,
         ...     bu_distribution={"Engineering": 0.30, "Sales": 0.50, "Corporate": 0.20}
         ... )
+
+        # Generate without attrition (all employees remain Active)
+        >>> data = generate_hr_data(n_employees=100, seed=42, include_attrition=False)
     """
     generator = HRDataGenerator(seed=seed)
     return generator.generate(
@@ -184,5 +254,8 @@ def generate_hr_data(
         end_date=end_date,
         include_performance=include_performance,
         include_compensation=include_compensation,
+        include_attrition=include_attrition,
+        attrition_rate=attrition_rate,
+        noise_std=noise_std,
         bu_distribution=bu_distribution,
     )
