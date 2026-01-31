@@ -4,12 +4,13 @@ A pip-installable Python library that generates realistic SuccessFactors-style H
 
 ## Features
 
-- Generates 6 interconnected HR tables with referential integrity
+- Generates 8 interconnected HR tables with referential integrity
+- **Employee attrition simulation** for ML turnover prediction
 - Reproducible results with seed parameter
 - Time-variant records with proper start_date/end_date chaining
 - Realistic manager hierarchy with seniority constraints
 - Band-aware age generation matching job seniority
-- Configurable employee count and date ranges
+- Configurable employee count, date ranges, and business unit distribution
 
 ## Installation
 
@@ -40,6 +41,10 @@ performance = data['employee_performance']
 orgs = data['organization_unit']
 jobs = data['job_role']
 locations = data['location']
+
+# Check attrition (enabled by default)
+terminated = employees[employees['termination_date'].notna()]
+print(f"Attrition rate: {len(terminated)/len(employees):.1%}")
 ```
 
 ## API Reference
@@ -50,16 +55,30 @@ Main function to generate complete HR dataset.
 
 ```python
 generate_hr_data(
-    n_employees=100,      # Number of employees to generate
-    start_date=None,      # Simulation start (default: 5 years ago)
-    end_date=None,        # Simulation end (default: today)
-    seed=None,            # Random seed for reproducibility
-    include_performance=True,   # Generate performance reviews
-    include_compensation=True,  # Generate compensation records
+    n_employees=100,           # Number of employees to generate
+    start_date=None,           # Simulation start (default: 5 years ago)
+    end_date=None,             # Simulation end (default: today)
+    seed=None,                 # Random seed for reproducibility
+    include_performance=True,  # Generate performance reviews
+    include_compensation=True, # Generate compensation records
+    include_attrition=True,    # Apply employee attrition/turnover
+    attrition_rate=0.12,       # Base annual attrition rate (12%)
+    noise_std=0.2,             # Noise for ML difficulty (see below)
+    bu_distribution=None,      # Business unit distribution dict
 )
 ```
 
 **Returns:** Dictionary of pandas DataFrames
+
+#### Noise Parameter for ML Difficulty
+
+The `noise_std` parameter controls how predictable the attrition patterns are:
+
+| noise_std | ML Accuracy | Use Case |
+|-----------|-------------|----------|
+| 0.1 | ~90%+ | Easy demos, teaching basic ML |
+| 0.2 | ~80-85% | Realistic scenarios (default) |
+| 0.3 | ~70-75% | Challenging ML problems |
 
 ### `HRDataGenerator` Class
 
@@ -91,9 +110,11 @@ Core employee master with one row per person.
 | birth_date | DATE | Date of birth |
 | hire_date | DATE | Employment start date |
 | employment_type | STRING | Full-time / Part-time / Contract |
-| employment_status | STRING | Active / Terminated |
+| employment_status | STRING | Active / Terminated / Retired |
 | location_id | STRING | FK to location table |
 | manager_id | STRING | FK to employee (NULL for CEO) |
+| termination_date | DATE | Date of termination (NULL if active) |
+| termination_reason | STRING | Reason for leaving (NULL if active) |
 
 ### `employee_job_assignment` (Time-Variant)
 
@@ -216,6 +237,78 @@ Jobs are assigned to compatible organizations:
 - Engineering jobs → Engineering business unit orgs
 - Sales jobs → Sales business unit orgs
 - Corporate jobs → Corporate business unit orgs
+
+## Employee Attrition (ML Use Case)
+
+The library simulates realistic employee turnover for **binary classification ML** tasks.
+
+### Attrition Probability Model
+
+```
+P(leave) = base_rate × perf_factor × tenure_factor × emp_type_factor × seniority_factor × promotion_factor
+```
+
+### Factor Multipliers
+
+| Factor | Values | Multipliers |
+|--------|--------|-------------|
+| **Performance** | 1 (Needs Improvement) | 2.5× (highest risk) |
+| | 3 (Meets Expectations) | 1.0× (baseline) |
+| | 5 (Outstanding) | 0.4× (lowest risk) |
+| **Tenure** | < 1 year | 1.8× |
+| | 2-5 years | 1.0× (baseline) |
+| | 10+ years | 0.5× |
+| **Employment Type** | Full-time | 1.0× |
+| | Contract | 2.0× |
+| | Part-time | 1.4× |
+| **Seniority** | Level 1 (Junior) | 1.3× |
+| | Level 3 (Senior) | 0.9× |
+| | Level 5 (Director) | 0.5× |
+| **Recent Promotion** | Yes | 0.4× |
+| | No | 1.0× |
+
+### Termination Reasons
+
+**Voluntary:**
+- Resignation - Career Opportunity
+- Resignation - Personal Reasons
+- Resignation - Relocation
+- Retirement (age 55+ only, higher probability at 60+)
+
+**Involuntary:**
+- Termination - Performance (more likely for low performers)
+- Termination - Policy Violation
+- Layoff - Restructuring
+- Layoff - Cost Reduction
+
+### ML Features Enabled
+
+The generated data supports these predictive features:
+- `performance_rating`, `tenure_years`, `time_in_current_role`
+- `salary_percentile`, `time_since_last_raise`, `recent_promotion`
+- `employment_type`, `seniority_level`, `age`, `business_unit`
+
+**Target variable:** `termination_date IS NOT NULL` (binary classification)
+
+### Example: Preparing ML Dataset
+
+```python
+from hr_data_generator import generate_hr_data
+import pandas as pd
+
+data = generate_hr_data(n_employees=1000, seed=42)
+employees = data['employee']
+
+# Create target variable
+employees['is_terminated'] = employees['termination_date'].notna().astype(int)
+
+# Calculate tenure
+employees['tenure_years'] = (
+    pd.to_datetime('today') - pd.to_datetime(employees['hire_date'])
+).dt.days / 365.25
+
+print(f"Attrition rate: {employees['is_terminated'].mean():.1%}")
+```
 
 ## Testing
 
