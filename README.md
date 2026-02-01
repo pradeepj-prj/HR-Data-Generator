@@ -6,6 +6,7 @@ A pip-installable Python library that generates realistic SuccessFactors-style H
 
 - Generates 8 interconnected HR tables with referential integrity
 - **Employee attrition simulation** for ML turnover prediction
+- **Hiring simulation** for balanced workforce dynamics
 - Reproducible results with seed parameter
 - Time-variant records with proper start_date/end_date chaining
 - Realistic manager hierarchy with seniority constraints
@@ -65,6 +66,10 @@ generate_hr_data(
     attrition_rate=0.12,       # Base annual attrition rate (12%)
     noise_std=0.2,             # Noise for ML difficulty (see below)
     bu_distribution=None,      # Business unit distribution dict
+    include_hiring=False,      # Enable hiring simulation
+    base_growth_rate=0.05,     # Base annual growth rate (5%)
+    backfill_rate=0.85,        # Fraction of attrition to backfill (85%)
+    bu_growth_rates=None,      # Per-BU growth rate overrides
 )
 ```
 
@@ -289,6 +294,73 @@ The generated data supports these predictive features:
 - `employment_type`, `seniority_level`, `age`, `business_unit`
 
 **Target variable:** `termination_date IS NOT NULL` (binary classification)
+
+## Hiring Simulation (Workforce Dynamics)
+
+When `include_hiring=True`, the library simulates realistic workforce growth alongside attrition.
+
+### How It Works
+
+Each simulation year:
+1. **Growth hires** are calculated based on current headcount and growth rate
+2. **Attrition** is applied (employees leave)
+3. **Backfill hires** replace a fraction of departed employees
+4. New employees are generated with realistic demographics
+
+### Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `include_hiring` | `False` | Enable hiring simulation |
+| `base_growth_rate` | `0.05` | 5% annual workforce growth |
+| `backfill_rate` | `0.85` | Replace 85% of departures |
+| `bu_growth_rates` | See below | Per-business-unit rates |
+
+### Default Business Unit Growth Rates
+
+```python
+{
+    "Engineering": 0.08,  # Tech grows faster
+    "Sales": 0.05,        # Standard growth
+    "Corporate": 0.02,    # Support functions grow slower
+}
+```
+
+### New Hire Seniority Distribution
+
+New hires skew junior (realistic hiring patterns):
+
+| Level | Percentage |
+|-------|------------|
+| 1 (Junior) | 40% |
+| 2 (Mid) | 30% |
+| 3 (Senior) | 20% |
+| 4 (Manager) | 8% |
+| 5 (Director) | 2% |
+
+### Example: Balanced Workforce Dynamics
+
+```python
+from hr_data_generator import generate_hr_data
+
+# 10-year simulation with hiring and attrition
+data = generate_hr_data(
+    n_employees=100,
+    seed=42,
+    start_date="2015-01-01",
+    end_date="2025-12-31",
+    include_attrition=True,
+    attrition_rate=0.12,
+    include_hiring=True,
+    base_growth_rate=0.05,
+    backfill_rate=0.85,
+)
+
+employees = data['employee']
+active = employees[employees['termination_date'].isna()]
+print(f"Started with 100, now have {len(active)} active employees")
+# Typical output: "Started with 100, now have 150+ active employees"
+```
 
 ### Example: Preparing ML Dataset
 
