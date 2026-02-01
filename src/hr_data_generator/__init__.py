@@ -8,6 +8,7 @@ from .attrition import (
     RangeLookupStrategy,
 )
 from .generator import HRDataGenerator, generate_hr_data
+from .hiring import HiringModel
 from .loader import (
     load_all_reference_data,
     load_employee_data,
@@ -31,4 +32,6 @@ __all__ = [
     "LookupStrategy",
     "RangeLookupStrategy",
     "FormulaStrategy",
+    # Hiring model (for advanced customization)
+    "HiringModel",
 ]

@@ -9,12 +9,14 @@ import pandas as pd
 from .assignments import generate_job_assignments, generate_org_assignments
 from .attrition import (
     apply_attrition,
+    apply_attrition_for_year,
     close_records_at_termination,
     filter_reviews_by_termination,
 )
 from .compensation import generate_compensation_records
 from .employee import DEFAULT_BU_DISTRIBUTION, generate_employees_with_bands
 from .hierarchy import build_manager_hierarchy, validate_hierarchy, validate_manager_bu_alignment
+from .hiring import HiringModel, apply_hiring
 from .loader import load_all_reference_data, load_employee_data, load_job_data, load_org_data
 from .performance import generate_performance_reviews
 
@@ -46,6 +48,10 @@ class HRDataGenerator:
         attrition_rate: float = 0.12,
         noise_std: float = 0.2,
         bu_distribution: dict[str, float] | None = None,
+        include_hiring: bool = False,
+        base_growth_rate: float = 0.05,
+        backfill_rate: float = 0.85,
+        bu_growth_rates: dict[str, float] | None = None,
     ) -> dict[str, pd.DataFrame]:
         """
         Generate complete HR dataset.
@@ -64,6 +70,11 @@ class HRDataGenerator:
                 - High (0.3): ML accuracy ~70-75%
             bu_distribution: Business unit distribution dict mapping BU names to
                 proportions (default: 50% Engineering, 30% Sales, 20% Corporate)
+            include_hiring: Enable hiring simulation (default: False)
+            base_growth_rate: Base annual growth rate for hiring (default: 0.05 = 5%)
+            backfill_rate: Fraction of attrition to backfill (default: 0.85 = 85%)
+            bu_growth_rates: Per-business-unit growth rate overrides
+                (default: Engineering 8%, Sales 5%, Corporate 2%)
 
         Returns:
             Dictionary of DataFrames:
@@ -115,21 +126,15 @@ class HRDataGenerator:
             employees, job_assignments, self.org_data, self.rng, end_date=end_date
         )
 
-        result = {
-            "employee": employees.drop(columns=["_seniority_level", "_business_unit"]),
-            "employee_job_assignment": job_assignments,
-            "employee_org_assignment": org_assignments,
-            "organization_unit": self.reference_data["organization_unit"],
-            "job_role": self.reference_data["job_role"],
-            "location": self.reference_data["location"],
-        }
-
+        # Generate compensation if requested
+        compensation = None
         if include_compensation:
             compensation = generate_compensation_records(
                 employees, job_assignments, self.rng, end_date=end_date
             )
-            result["employee_compensation"] = compensation
 
+        # Generate performance reviews if requested
+        performance = None
         if include_performance:
             performance = generate_performance_reviews(
                 employees,
@@ -137,48 +142,199 @@ class HRDataGenerator:
                 start_year=start_date.year,
                 end_year=end_date.year,
             )
-            result["employee_performance"] = performance
 
-        # Apply attrition after all time-variant data is generated
-        if include_attrition:
-            performance_for_attrition = result.get("employee_performance")
+        # Use combined simulation if both hiring and attrition are enabled
+        if include_hiring and include_attrition:
+            hiring_model = HiringModel(
+                base_growth_rate=base_growth_rate,
+                backfill_rate=backfill_rate,
+                bu_growth_rates=bu_growth_rates,
+            )
+            employees, job_assignments, org_assignments, compensation, performance = (
+                self._simulate_workforce_dynamics(
+                    employees=employees,
+                    job_assignments=job_assignments,
+                    org_assignments=org_assignments,
+                    compensation=compensation,
+                    performance=performance,
+                    start_year=start_date.year,
+                    end_year=end_date.year,
+                    attrition_rate=attrition_rate,
+                    noise_std=noise_std,
+                    hiring_model=hiring_model,
+                )
+            )
+        elif include_hiring:
+            # Hiring only (no attrition) - apply growth hires only
+            hiring_model = HiringModel(
+                base_growth_rate=base_growth_rate,
+                backfill_rate=0.0,  # No backfill without attrition
+                bu_growth_rates=bu_growth_rates,
+            )
+            for year in range(start_date.year, end_date.year + 1):
+                # Calculate headcount by BU
+                active = employees[employees["termination_date"].isna()]
+                headcount_by_bu = (
+                    active.groupby("_business_unit").size().to_dict()
+                    if "_business_unit" in active.columns
+                    else {}
+                )
 
-            # Apply attrition to employees
+                growth_hires = hiring_model.calculate_growth_hires(headcount_by_bu)
+
+                employees, job_assignments, org_assignments, compensation = apply_hiring(
+                    employees=employees,
+                    job_assignments=job_assignments,
+                    org_assignments=org_assignments,
+                    compensation=compensation,
+                    employee_data=self.employee_data,
+                    job_data=self.job_data,
+                    org_data=self.org_data,
+                    rng=self.rng,
+                    year=year,
+                    growth_hires_by_bu=growth_hires,
+                    backfill_hires_by_bu={},
+                    hiring_model=hiring_model,
+                )
+        elif include_attrition:
+            # Attrition only (original behavior)
             employees_with_attrition = apply_attrition(
-                employees=result["employee"],
-                performance_reviews=performance_for_attrition,
-                job_assignments=result["employee_job_assignment"],
+                employees=employees,
+                performance_reviews=performance,
+                job_assignments=job_assignments,
                 rng=self.rng,
                 start_year=start_date.year,
                 end_year=end_date.year,
                 attrition_rate=attrition_rate,
                 noise_std=noise_std,
             )
-            result["employee"] = employees_with_attrition
+            employees = employees_with_attrition
 
             # Close time-variant records at termination
-            result["employee_job_assignment"] = close_records_at_termination(
-                result["employee_job_assignment"],
-                employees_with_attrition,
+            job_assignments = close_records_at_termination(
+                job_assignments, employees_with_attrition
             )
-            result["employee_org_assignment"] = close_records_at_termination(
-                result["employee_org_assignment"],
-                employees_with_attrition,
+            org_assignments = close_records_at_termination(
+                org_assignments, employees_with_attrition
             )
-
-            if "employee_compensation" in result:
-                result["employee_compensation"] = close_records_at_termination(
-                    result["employee_compensation"],
-                    employees_with_attrition,
+            if compensation is not None:
+                compensation = close_records_at_termination(
+                    compensation, employees_with_attrition
+                )
+            if performance is not None:
+                performance = filter_reviews_by_termination(
+                    performance, employees_with_attrition
                 )
 
-            if "employee_performance" in result:
-                result["employee_performance"] = filter_reviews_by_termination(
-                    result["employee_performance"],
-                    employees_with_attrition,
-                )
+        # Build result dictionary
+        # Drop internal columns if present
+        cols_to_drop = [c for c in ["_seniority_level", "_business_unit"] if c in employees.columns]
+        result = {
+            "employee": employees.drop(columns=cols_to_drop) if cols_to_drop else employees,
+            "employee_job_assignment": job_assignments,
+            "employee_org_assignment": org_assignments,
+            "organization_unit": self.reference_data["organization_unit"],
+            "job_role": self.reference_data["job_role"],
+            "location": self.reference_data["location"],
+        }
+
+        if compensation is not None:
+            result["employee_compensation"] = compensation
+        if performance is not None:
+            result["employee_performance"] = performance
 
         return result
+
+    def _simulate_workforce_dynamics(
+        self,
+        employees: pd.DataFrame,
+        job_assignments: pd.DataFrame,
+        org_assignments: pd.DataFrame,
+        compensation: pd.DataFrame | None,
+        performance: pd.DataFrame | None,
+        start_year: int,
+        end_year: int,
+        attrition_rate: float,
+        noise_std: float,
+        hiring_model: HiringModel,
+    ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame | None, pd.DataFrame | None]:
+        """
+        Run year-by-year simulation with interleaved attrition and hiring.
+
+        For each year:
+        1. Calculate growth hires based on current headcount
+        2. Apply attrition
+        3. Calculate backfill hires based on attrition
+        4. Generate new hires (growth + backfill)
+        5. Close terminated employees' records
+
+        Args:
+            employees: Employee DataFrame with _business_unit column
+            job_assignments: Job assignments DataFrame
+            org_assignments: Org assignments DataFrame
+            compensation: Compensation DataFrame (optional)
+            performance: Performance reviews DataFrame (optional)
+            start_year: First year of simulation
+            end_year: Last year of simulation
+            attrition_rate: Base annual attrition rate
+            noise_std: Noise for attrition probability
+            hiring_model: HiringModel instance for configuration
+
+        Returns:
+            Tuple of updated DataFrames:
+            (employees, job_assignments, org_assignments, compensation, performance)
+        """
+        for year in range(start_year, end_year + 1):
+            # Step 1: Calculate growth hires based on current active headcount
+            active = employees[employees["termination_date"].isna()]
+            if "_business_unit" in active.columns:
+                headcount_by_bu = active.groupby("_business_unit").size().to_dict()
+            else:
+                headcount_by_bu = {"Unknown": len(active)}
+
+            growth_hires = hiring_model.calculate_growth_hires(headcount_by_bu)
+
+            # Step 2: Apply attrition for this year
+            employees, attrition_by_bu = apply_attrition_for_year(
+                employees=employees,
+                performance_reviews=performance,
+                job_assignments=job_assignments,
+                rng=self.rng,
+                year=year,
+                attrition_rate=attrition_rate,
+                noise_std=noise_std,
+            )
+
+            # Step 3: Calculate backfill hires
+            backfill_hires = hiring_model.calculate_backfill_hires(attrition_by_bu)
+
+            # Step 4: Apply hiring (growth + backfill)
+            employees, job_assignments, org_assignments, compensation = apply_hiring(
+                employees=employees,
+                job_assignments=job_assignments,
+                org_assignments=org_assignments,
+                compensation=compensation,
+                employee_data=self.employee_data,
+                job_data=self.job_data,
+                org_data=self.org_data,
+                rng=self.rng,
+                year=year,
+                growth_hires_by_bu=growth_hires,
+                backfill_hires_by_bu=backfill_hires,
+                hiring_model=hiring_model,
+            )
+
+            # Step 5: Close time-variant records for terminated employees
+            job_assignments = close_records_at_termination(job_assignments, employees)
+            org_assignments = close_records_at_termination(org_assignments, employees)
+            if compensation is not None:
+                compensation = close_records_at_termination(compensation, employees)
+
+        # Final cleanup: filter performance reviews by termination
+        if performance is not None:
+            performance = filter_reviews_by_termination(performance, employees)
+
+        return employees, job_assignments, org_assignments, compensation, performance
 
 
 def generate_hr_data(
@@ -192,6 +348,10 @@ def generate_hr_data(
     attrition_rate: float = 0.12,
     noise_std: float = 0.2,
     bu_distribution: dict[str, float] | None = None,
+    include_hiring: bool = False,
+    base_growth_rate: float = 0.05,
+    backfill_rate: float = 0.85,
+    bu_growth_rates: dict[str, float] | None = None,
 ) -> dict[str, pd.DataFrame]:
     """
     Generate complete HR dataset.
@@ -215,6 +375,13 @@ def generate_hr_data(
         bu_distribution: Business unit distribution dict mapping BU names to
             proportions (default: 50% Engineering, 30% Sales, 20% Corporate).
             Example: {"Engineering": 0.30, "Sales": 0.50, "Corporate": 0.20}
+        include_hiring: Enable hiring simulation (default: False).
+            When True, new employees are hired each year based on growth
+            rates and backfill needs.
+        base_growth_rate: Base annual growth rate for hiring (default: 0.05 = 5%)
+        backfill_rate: Fraction of attrition to backfill (default: 0.85 = 85%)
+        bu_growth_rates: Per-business-unit growth rate overrides.
+            Default: {"Engineering": 0.08, "Sales": 0.05, "Corporate": 0.02}
 
     Returns:
         Dictionary of DataFrames:
@@ -246,6 +413,23 @@ def generate_hr_data(
 
         # Generate without attrition (all employees remain Active)
         >>> data = generate_hr_data(n_employees=100, seed=42, include_attrition=False)
+
+        # Balanced workforce dynamics with hiring and attrition
+        >>> data = generate_hr_data(
+        ...     n_employees=100,
+        ...     seed=42,
+        ...     include_attrition=True,
+        ...     include_hiring=True,
+        ...     base_growth_rate=0.05,
+        ...     backfill_rate=0.85,
+        ...     bu_growth_rates={
+        ...         "Engineering": 0.08,
+        ...         "Sales": 0.05,
+        ...         "Corporate": 0.02,
+        ...     },
+        ... )
+        >>> active = data['employee'][data['employee']['termination_date'].isna()]
+        >>> print(f"Active employees: {len(active)}")
     """
     generator = HRDataGenerator(seed=seed)
     return generator.generate(
@@ -258,4 +442,8 @@ def generate_hr_data(
         attrition_rate=attrition_rate,
         noise_std=noise_std,
         bu_distribution=bu_distribution,
+        include_hiring=include_hiring,
+        base_growth_rate=base_growth_rate,
+        backfill_rate=backfill_rate,
+        bu_growth_rates=bu_growth_rates,
     )

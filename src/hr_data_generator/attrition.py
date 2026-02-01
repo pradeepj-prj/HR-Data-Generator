@@ -577,3 +577,244 @@ def filter_reviews_by_termination(
         mask = mask & ~emp_reviews_mask
 
     return reviews[mask]
+
+
+def apply_attrition_with_stats(
+    employees: pd.DataFrame,
+    performance_reviews: pd.DataFrame | None,
+    job_assignments: pd.DataFrame,
+    rng: np.random.Generator,
+    start_year: int,
+    end_year: int,
+    attrition_rate: float = 0.12,
+    noise_std: float = 0.2,
+) -> tuple[pd.DataFrame, dict[int, dict[str, int]]]:
+    """
+    Apply attrition and track statistics by year and business unit.
+
+    This wraps apply_attrition() to collect per-year, per-BU attrition counts
+    needed for calculating backfill hiring.
+
+    Args:
+        employees: Employee DataFrame (must include hire_date, employment_type, _business_unit)
+        performance_reviews: Performance reviews DataFrame (optional)
+        job_assignments: Job assignments DataFrame
+        rng: Random number generator
+        start_year: First year of simulation
+        end_year: Last year of simulation
+        attrition_rate: Base annual attrition rate
+        noise_std: Noise for probability variation
+
+    Returns:
+        Tuple of:
+        - Updated employees DataFrame with termination fields
+        - Attrition stats dict: {year: {business_unit: count}}
+    """
+    # Store original state to compare
+    original_terminations = set(
+        employees[employees["termination_date"].notna()]["employee_id"].tolist()
+    )
+
+    # Apply attrition
+    employees_with_attrition = apply_attrition(
+        employees=employees,
+        performance_reviews=performance_reviews,
+        job_assignments=job_assignments,
+        rng=rng,
+        start_year=start_year,
+        end_year=end_year,
+        attrition_rate=attrition_rate,
+        noise_std=noise_std,
+    )
+
+    # Collect statistics by analyzing who was terminated
+    attrition_stats: dict[int, dict[str, int]] = {}
+
+    # Initialize stats for all years
+    for year in range(start_year, end_year + 1):
+        attrition_stats[year] = {}
+
+    # Find newly terminated employees and categorize by year and BU
+    terminated = employees_with_attrition[
+        employees_with_attrition["termination_date"].notna()
+    ]
+
+    for _, emp in terminated.iterrows():
+        emp_id = emp["employee_id"]
+
+        # Skip if was already terminated before this run
+        if emp_id in original_terminations:
+            continue
+
+        term_date = emp["termination_date"]
+        if isinstance(term_date, str):
+            term_date = date.fromisoformat(term_date)
+
+        year = term_date.year
+
+        # Get business unit (use _business_unit if available, else default)
+        if "_business_unit" in emp and pd.notna(emp["_business_unit"]):
+            bu = emp["_business_unit"]
+        else:
+            # Default to "Unknown" if BU not available
+            bu = "Unknown"
+
+        if year not in attrition_stats:
+            attrition_stats[year] = {}
+
+        attrition_stats[year][bu] = attrition_stats[year].get(bu, 0) + 1
+
+    return employees_with_attrition, attrition_stats
+
+
+def apply_attrition_for_year(
+    employees: pd.DataFrame,
+    performance_reviews: pd.DataFrame | None,
+    job_assignments: pd.DataFrame,
+    rng: np.random.Generator,
+    year: int,
+    attrition_rate: float = 0.12,
+    noise_std: float = 0.2,
+) -> tuple[pd.DataFrame, dict[str, int]]:
+    """
+    Apply attrition for a single year and return statistics.
+
+    This is used for year-by-year simulation where hiring and attrition
+    are interleaved.
+
+    Args:
+        employees: Employee DataFrame
+        performance_reviews: Performance reviews DataFrame (optional)
+        job_assignments: Job assignments DataFrame
+        rng: Random number generator
+        year: Year to process
+        attrition_rate: Base annual attrition rate
+        noise_std: Noise for probability variation
+
+    Returns:
+        Tuple of:
+        - Updated employees DataFrame
+        - Attrition stats for this year: {business_unit: count}
+    """
+    model = AttritionModel(
+        base_annual_rate=attrition_rate,
+        noise_std=noise_std,
+    )
+
+    employees = employees.copy()
+    year_end = date(year, 12, 31)
+    attrition_by_bu: dict[str, int] = {}
+
+    # Initialize termination fields if not present
+    if "termination_date" not in employees.columns:
+        employees["termination_date"] = None
+    if "termination_reason" not in employees.columns:
+        employees["termination_reason"] = None
+
+    for idx, emp in employees.iterrows():
+        # Skip already terminated
+        if emp["termination_date"] is not None and pd.notna(emp["termination_date"]):
+            continue
+
+        hire_date = emp["hire_date"]
+        if isinstance(hire_date, str):
+            hire_date = date.fromisoformat(hire_date)
+
+        # Skip if not hired yet
+        if hire_date.year > year:
+            continue
+
+        # Calculate tenure
+        tenure_years = (year_end - hire_date).days / 365.25
+
+        # Skip if tenure < 0.25 years (3 months)
+        if tenure_years < 0.25:
+            continue
+
+        # Get most recent performance rating
+        perf_rating = None
+        if performance_reviews is not None and len(performance_reviews) > 0:
+            emp_reviews = performance_reviews[
+                (performance_reviews["employee_id"] == emp["employee_id"])
+                & (performance_reviews["review_period_year"] < year)
+            ].sort_values("review_period_year", ascending=False)
+            if len(emp_reviews) > 0:
+                perf_rating = emp_reviews.iloc[0]["rating"]
+
+        # Get current seniority level
+        emp_jobs = job_assignments[
+            job_assignments["employee_id"] == emp["employee_id"]
+        ]
+        current_job = emp_jobs[
+            (emp_jobs["start_date"] <= year_end)
+            & ((emp_jobs["end_date"].isna()) | (emp_jobs["end_date"] >= year_end))
+        ]
+        if len(current_job) == 0:
+            current_job = emp_jobs[emp_jobs["start_date"] <= year_end]
+            if len(current_job) == 0:
+                continue
+            current_job = current_job.iloc[-1:]
+
+        seniority_level = current_job.iloc[0]["seniority_level"]
+
+        # Check for recent promotion (within last year)
+        had_promotion = False
+        year_start = date(year, 1, 1)
+        prev_year_start = date(year - 1, 1, 1)
+        for _, job in emp_jobs.iterrows():
+            job_start = job["start_date"]
+            if isinstance(job_start, str):
+                job_start = date.fromisoformat(job_start)
+            if prev_year_start <= job_start <= year_start:
+                prev_jobs = emp_jobs[emp_jobs["start_date"] < job_start]
+                if len(prev_jobs) > 0:
+                    prev_seniority = prev_jobs.iloc[-1]["seniority_level"]
+                    if job["seniority_level"] > prev_seniority:
+                        had_promotion = True
+                        break
+
+        # Determine if employee leaves this year
+        will_leave = model.will_leave_this_year(
+            performance_rating=perf_rating,
+            tenure_years=tenure_years,
+            employment_type=emp["employment_type"],
+            seniority_level=seniority_level,
+            had_recent_promotion=had_promotion,
+            rng=rng,
+        )
+
+        if will_leave:
+            # Calculate age at termination
+            birth_date = emp["birth_date"]
+            if isinstance(birth_date, str):
+                birth_date = date.fromisoformat(birth_date)
+            age = year - birth_date.year
+
+            # Select termination reason
+            reason, category = select_termination_reason(age, perf_rating, rng)
+
+            # If retirement selected but age < 55, choose different reason
+            if "Retirement" in reason and age < 55:
+                reason = "Resignation - Career Opportunity"
+                category = "Voluntary"
+
+            # Get termination date
+            term_date = get_termination_date(year, hire_date, rng)
+
+            employees.at[idx, "termination_date"] = term_date
+            employees.at[idx, "termination_reason"] = reason
+
+            # Update employment status
+            if "Retirement" in reason:
+                employees.at[idx, "employment_status"] = "Retired"
+            else:
+                employees.at[idx, "employment_status"] = "Terminated"
+
+            # Track by business unit
+            if "_business_unit" in emp and pd.notna(emp["_business_unit"]):
+                bu = emp["_business_unit"]
+            else:
+                bu = "Unknown"
+            attrition_by_bu[bu] = attrition_by_bu.get(bu, 0) + 1
+
+    return employees, attrition_by_bu
