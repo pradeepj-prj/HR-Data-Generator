@@ -1,7 +1,7 @@
 """Main HR Data Generator orchestrator."""
 
 from datetime import date
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,7 @@ from .hierarchy import build_manager_hierarchy, validate_hierarchy, validate_man
 from .hiring import HiringModel, apply_hiring
 from .loader import load_all_reference_data, load_employee_data, load_job_data, load_org_data
 from .performance import generate_performance_reviews
+from .progress import ProgressCallback, ProgressInfo
 
 
 class HRDataGenerator:
@@ -52,6 +53,7 @@ class HRDataGenerator:
         base_growth_rate: float = 0.05,
         backfill_rate: float = 0.85,
         bu_growth_rates: dict[str, float] | None = None,
+        progress_callback: ProgressCallback | None = None,
     ) -> dict[str, pd.DataFrame]:
         """
         Generate complete HR dataset.
@@ -75,6 +77,8 @@ class HRDataGenerator:
             backfill_rate: Fraction of attrition to backfill (default: 0.85 = 85%)
             bu_growth_rates: Per-business-unit growth rate overrides
                 (default: Engineering 8%, Sales 5%, Corporate 2%)
+            progress_callback: Optional callback function that receives ProgressInfo
+                updates during generation. Use for progress bars and status updates.
 
         Returns:
             Dictionary of DataFrames:
@@ -97,6 +101,32 @@ class HRDataGenerator:
         elif isinstance(end_date, str):
             end_date = date.fromisoformat(end_date)
 
+        # Helper to emit progress updates
+        def emit_progress(
+            phase: str,
+            step: int,
+            total: int,
+            message: str,
+            sub_step: int | None = None,
+            sub_total: int | None = None,
+        ) -> None:
+            if progress_callback is not None:
+                progress_callback(
+                    ProgressInfo(
+                        phase=phase,
+                        step=step,
+                        total_steps=total,
+                        message=message,
+                        sub_step=sub_step,
+                        sub_total=sub_total,
+                    )
+                )
+
+        # Total steps: employees, hierarchy, jobs, orgs, compensation, performance, dynamics, finalize
+        total_steps = 8
+
+        # Step 1: Generate employees
+        emit_progress("employees", 1, total_steps, f"Generating {n_employees} employees...")
         employees = generate_employees_with_bands(
             n_employees,
             self.employee_data,
@@ -106,6 +136,8 @@ class HRDataGenerator:
             bu_distribution=bu_distribution,
         )
 
+        # Step 2: Build hierarchy
+        emit_progress("hierarchy", 2, total_steps, "Building manager hierarchy...")
         employees = build_manager_hierarchy(
             employees, self.job_data, self.org_data, self.rng
         )
@@ -118,22 +150,28 @@ class HRDataGenerator:
         if bu_errors:
             raise ValueError(f"Business unit alignment validation failed: {bu_errors}")
 
+        # Step 3: Job assignments
+        emit_progress("job_assignments", 3, total_steps, "Generating job assignments...")
         job_assignments = generate_job_assignments(
             employees, self.job_data, self.rng, end_date=end_date
         )
 
+        # Step 4: Org assignments
+        emit_progress("org_assignments", 4, total_steps, "Generating org assignments...")
         org_assignments = generate_org_assignments(
             employees, job_assignments, self.org_data, self.rng, end_date=end_date
         )
 
-        # Generate compensation if requested
+        # Step 5: Generate compensation if requested
+        emit_progress("compensation", 5, total_steps, "Generating compensation records...")
         compensation = None
         if include_compensation:
             compensation = generate_compensation_records(
                 employees, job_assignments, self.rng, end_date=end_date
             )
 
-        # Generate performance reviews if requested
+        # Step 6: Generate performance reviews if requested
+        emit_progress("performance", 6, total_steps, "Generating performance reviews...")
         performance = None
         if include_performance:
             performance = generate_performance_reviews(
@@ -143,8 +181,12 @@ class HRDataGenerator:
                 end_year=end_date.year,
             )
 
+        # Step 7: Workforce dynamics (attrition and/or hiring)
         # Use combined simulation if both hiring and attrition are enabled
         if include_hiring and include_attrition:
+            emit_progress(
+                "workforce_dynamics", 7, total_steps, "Simulating workforce dynamics..."
+            )
             hiring_model = HiringModel(
                 base_growth_rate=base_growth_rate,
                 backfill_rate=backfill_rate,
@@ -162,16 +204,24 @@ class HRDataGenerator:
                     attrition_rate=attrition_rate,
                     noise_std=noise_std,
                     hiring_model=hiring_model,
+                    progress_callback=progress_callback,
                 )
             )
         elif include_hiring:
             # Hiring only (no attrition) - apply growth hires only
+            emit_progress("hiring", 7, total_steps, "Simulating hiring...")
             hiring_model = HiringModel(
                 base_growth_rate=base_growth_rate,
                 backfill_rate=0.0,  # No backfill without attrition
                 bu_growth_rates=bu_growth_rates,
             )
-            for year in range(start_date.year, end_date.year + 1):
+            years = list(range(start_date.year, end_date.year + 1))
+            for i, year in enumerate(years):
+                emit_progress(
+                    "hiring", 7, total_steps,
+                    f"Simulating hiring for year {year}...",
+                    sub_step=i + 1, sub_total=len(years),
+                )
                 # Calculate headcount by BU
                 active = employees[employees["termination_date"].isna()]
                 headcount_by_bu = (
@@ -198,6 +248,7 @@ class HRDataGenerator:
                 )
         elif include_attrition:
             # Attrition only (original behavior)
+            emit_progress("attrition", 7, total_steps, "Applying attrition...")
             employees_with_attrition = apply_attrition(
                 employees=employees,
                 performance_reviews=performance,
@@ -225,6 +276,9 @@ class HRDataGenerator:
                 performance = filter_reviews_by_termination(
                     performance, employees_with_attrition
                 )
+
+        # Step 8: Finalize
+        emit_progress("finalize", 8, total_steps, "Finalizing dataset...")
 
         # Build result dictionary
         # Drop internal columns if present
@@ -257,6 +311,7 @@ class HRDataGenerator:
         attrition_rate: float,
         noise_std: float,
         hiring_model: HiringModel,
+        progress_callback: ProgressCallback | None = None,
     ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame | None, pd.DataFrame | None]:
         """
         Run year-by-year simulation with interleaved attrition and hiring.
@@ -279,12 +334,29 @@ class HRDataGenerator:
             attrition_rate: Base annual attrition rate
             noise_std: Noise for attrition probability
             hiring_model: HiringModel instance for configuration
+            progress_callback: Optional callback for progress updates
 
         Returns:
             Tuple of updated DataFrames:
             (employees, job_assignments, org_assignments, compensation, performance)
         """
-        for year in range(start_year, end_year + 1):
+        years = list(range(start_year, end_year + 1))
+        total_years = len(years)
+
+        for i, year in enumerate(years):
+            # Emit progress for this year
+            if progress_callback is not None:
+                progress_callback(
+                    ProgressInfo(
+                        phase="workforce_dynamics",
+                        step=7,
+                        total_steps=8,
+                        message=f"Simulating year {year} ({i + 1}/{total_years})...",
+                        sub_step=i + 1,
+                        sub_total=total_years,
+                    )
+                )
+
             # Step 1: Calculate growth hires based on current active headcount
             active = employees[employees["termination_date"].isna()]
             if "_business_unit" in active.columns:
@@ -352,6 +424,7 @@ def generate_hr_data(
     base_growth_rate: float = 0.05,
     backfill_rate: float = 0.85,
     bu_growth_rates: dict[str, float] | None = None,
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, pd.DataFrame]:
     """
     Generate complete HR dataset.
@@ -382,6 +455,8 @@ def generate_hr_data(
         backfill_rate: Fraction of attrition to backfill (default: 0.85 = 85%)
         bu_growth_rates: Per-business-unit growth rate overrides.
             Default: {"Engineering": 0.08, "Sales": 0.05, "Corporate": 0.02}
+        progress_callback: Optional callback function that receives ProgressInfo
+            updates during generation. Use for progress bars and status updates.
 
     Returns:
         Dictionary of DataFrames:
@@ -446,4 +521,5 @@ def generate_hr_data(
         base_growth_rate=base_growth_rate,
         backfill_rate=backfill_rate,
         bu_growth_rates=bu_growth_rates,
+        progress_callback=progress_callback,
     )

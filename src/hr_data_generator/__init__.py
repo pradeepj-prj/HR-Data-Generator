@@ -16,6 +16,7 @@ from .loader import (
     load_location_data,
     load_org_data,
 )
+from .progress import ProgressCallback, ProgressInfo
 
 __version__ = "0.1.0"
 __all__ = [
@@ -34,4 +35,7 @@ __all__ = [
     "FormulaStrategy",
     # Hiring model (for advanced customization)
     "HiringModel",
+    # Progress callback support
+    "ProgressInfo",
+    "ProgressCallback",
 ]
