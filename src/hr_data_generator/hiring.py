@@ -196,7 +196,7 @@ def generate_new_hire_job_assignment(
         end_date: Simulation end date
 
     Returns:
-        Job assignment record dict
+        Job assignment record dict with all required fields
     """
     seniority_level = employee["_seniority_level"]
 
@@ -213,6 +213,8 @@ def generate_new_hire_job_assignment(
         "employee_id": employee["employee_id"],
         "job_id": job["job_id"],
         "job_title": job["job_title"],
+        "job_family": job["job_family"],
+        "job_level": job["job_level"],
         "seniority_level": seniority_level,
         "start_date": employee["hire_date"],
         "end_date": None,  # Open-ended
@@ -233,7 +235,7 @@ def generate_new_hire_org_assignment(
         rng: Random number generator
 
     Returns:
-        Org assignment record dict
+        Org assignment record dict with all required fields
     """
     business_unit = employee["_business_unit"]
 
@@ -243,11 +245,21 @@ def generate_new_hire_org_assignment(
     if len(matching_orgs) == 0:
         matching_orgs = org_data
 
-    org = matching_orgs.iloc[rng.integers(0, len(matching_orgs))]
+    # Prefer leaf orgs (no children)
+    leaf_orgs = matching_orgs[
+        ~matching_orgs["org_id"].isin(matching_orgs["parent_org_id"].dropna())
+    ]
+    if len(leaf_orgs) == 0:
+        leaf_orgs = matching_orgs
+
+    org = leaf_orgs.iloc[rng.integers(0, len(leaf_orgs))]
 
     return {
         "employee_id": employee["employee_id"],
-        "org_unit_id": org["org_id"],
+        "org_id": org["org_id"],
+        "org_name": org["org_name"],
+        "cost_center": org.get("cost_center"),
+        "business_unit": org["business_unit"],
         "start_date": employee["hire_date"],
         "end_date": None,  # Open-ended
     }
@@ -267,7 +279,7 @@ def generate_new_hire_compensation(
         rng: Random number generator
 
     Returns:
-        Compensation record dict
+        Compensation record dict with all required fields
     """
     # Base salary by seniority level (simplified model)
     base_salaries = {
@@ -276,6 +288,15 @@ def generate_new_hire_compensation(
         3: 95000,   # Senior
         4: 120000,  # Manager/Staff
         5: 160000,  # Director
+    }
+
+    # Bonus target percentages by seniority level
+    bonus_targets = {
+        1: 5,    # Junior - 5%
+        2: 10,   # Mid - 10%
+        3: 15,   # Senior - 15%
+        4: 20,   # Manager/Staff - 20%
+        5: 25,   # Director - 25%
     }
 
     seniority = employee["_seniority_level"]
@@ -287,10 +308,12 @@ def generate_new_hire_compensation(
 
     return {
         "employee_id": employee["employee_id"],
-        "annual_salary": salary,
+        "base_salary": salary,
+        "bonus_target_pct": bonus_targets.get(seniority, 10),
         "currency": "USD",
         "start_date": employee["hire_date"],
         "end_date": None,
+        "change_reason": "New Hire",
     }
 
 

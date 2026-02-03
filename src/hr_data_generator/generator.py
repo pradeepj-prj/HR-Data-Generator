@@ -1,7 +1,7 @@
 """Main HR Data Generator orchestrator."""
 
 from datetime import date
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 import numpy as np
 import pandas as pd
@@ -20,6 +20,7 @@ from .hiring import HiringModel, apply_hiring
 from .loader import load_all_reference_data, load_employee_data, load_job_data, load_org_data
 from .performance import generate_performance_reviews
 from .progress import ProgressCallback, ProgressInfo
+from .streaming import YearlyDataChunk
 
 
 class HRDataGenerator:
@@ -407,6 +408,339 @@ class HRDataGenerator:
             performance = filter_reviews_by_termination(performance, employees)
 
         return employees, job_assignments, org_assignments, compensation, performance
+
+    def generate_streaming(
+        self,
+        n_employees: int = 100,
+        start_date: str | date | None = None,
+        end_date: str | date | None = None,
+        include_performance: bool = True,
+        include_compensation: bool = True,
+        include_attrition: bool = True,
+        attrition_rate: float = 0.12,
+        noise_std: float = 0.2,
+        bu_distribution: dict[str, float] | None = None,
+        include_hiring: bool = False,
+        base_growth_rate: float = 0.05,
+        backfill_rate: float = 0.85,
+        bu_growth_rates: dict[str, float] | None = None,
+    ) -> Iterator[YearlyDataChunk]:
+        """
+        Generate HR data as a stream of yearly chunks.
+
+        This is the streaming version of generate(). Instead of returning
+        a complete dataset, it yields YearlyDataChunk objects year-by-year.
+
+        Args:
+            n_employees: Number of initial employees to generate
+            start_date: Simulation start date (default: 5 years ago)
+            end_date: Simulation end date (default: today)
+            include_performance: Generate performance reviews
+            include_compensation: Generate compensation records
+            include_attrition: Apply employee attrition/turnover
+            attrition_rate: Base annual attrition rate (default: 0.12 = 12%)
+            noise_std: Noise standard deviation for attrition probability
+            bu_distribution: Business unit distribution dict
+            include_hiring: Enable hiring simulation
+            base_growth_rate: Base annual growth rate for hiring
+            backfill_rate: Fraction of attrition to backfill
+            bu_growth_rates: Per-business-unit growth rate overrides
+
+        Yields:
+            YearlyDataChunk: One chunk per simulation year, containing all data
+                for that year. The first chunk includes reference data.
+        """
+        if start_date is None:
+            start_date = date(date.today().year - 5, 1, 1)
+        elif isinstance(start_date, str):
+            start_date = date.fromisoformat(start_date)
+
+        if end_date is None:
+            end_date = date.today()
+        elif isinstance(end_date, str):
+            end_date = date.fromisoformat(end_date)
+
+        # Generate initial employees
+        employees = generate_employees_with_bands(
+            n_employees,
+            self.employee_data,
+            self.job_data,
+            self.rng,
+            start_date=end_date,
+            bu_distribution=bu_distribution,
+        )
+
+        # Build hierarchy
+        employees = build_manager_hierarchy(
+            employees, self.job_data, self.org_data, self.rng
+        )
+
+        errors = validate_hierarchy(employees)
+        if errors:
+            raise ValueError(f"Hierarchy validation failed: {errors}")
+
+        bu_errors = validate_manager_bu_alignment(employees)
+        if bu_errors:
+            raise ValueError(f"Business unit alignment validation failed: {bu_errors}")
+
+        # Job assignments
+        job_assignments = generate_job_assignments(
+            employees, self.job_data, self.rng, end_date=end_date
+        )
+
+        # Org assignments
+        org_assignments = generate_org_assignments(
+            employees, job_assignments, self.org_data, self.rng, end_date=end_date
+        )
+
+        # Compensation
+        compensation = None
+        if include_compensation:
+            compensation = generate_compensation_records(
+                employees, job_assignments, self.rng, end_date=end_date
+            )
+
+        # Performance reviews
+        performance = None
+        if include_performance:
+            performance = generate_performance_reviews(
+                employees,
+                self.rng,
+                start_year=start_date.year,
+                end_year=end_date.year,
+            )
+
+        # If both hiring and attrition are enabled, use streaming workforce dynamics
+        if include_hiring and include_attrition:
+            hiring_model = HiringModel(
+                base_growth_rate=base_growth_rate,
+                backfill_rate=backfill_rate,
+                bu_growth_rates=bu_growth_rates,
+            )
+            yield from self._simulate_workforce_dynamics_streaming(
+                employees=employees,
+                job_assignments=job_assignments,
+                org_assignments=org_assignments,
+                compensation=compensation,
+                performance=performance,
+                start_year=start_date.year,
+                end_year=end_date.year,
+                attrition_rate=attrition_rate,
+                noise_std=noise_std,
+                hiring_model=hiring_model,
+            )
+        else:
+            # For simpler cases (attrition-only, hiring-only, or neither),
+            # apply changes and yield a single chunk
+            if include_hiring:
+                # Hiring only (no attrition)
+                hiring_model = HiringModel(
+                    base_growth_rate=base_growth_rate,
+                    backfill_rate=0.0,
+                    bu_growth_rates=bu_growth_rates,
+                )
+                years = list(range(start_date.year, end_date.year + 1))
+                for year in years:
+                    active = employees[employees["termination_date"].isna()]
+                    headcount_by_bu = (
+                        active.groupby("_business_unit").size().to_dict()
+                        if "_business_unit" in active.columns
+                        else {}
+                    )
+                    growth_hires = hiring_model.calculate_growth_hires(headcount_by_bu)
+                    employees, job_assignments, org_assignments, compensation = apply_hiring(
+                        employees=employees,
+                        job_assignments=job_assignments,
+                        org_assignments=org_assignments,
+                        compensation=compensation,
+                        employee_data=self.employee_data,
+                        job_data=self.job_data,
+                        org_data=self.org_data,
+                        rng=self.rng,
+                        year=year,
+                        growth_hires_by_bu=growth_hires,
+                        backfill_hires_by_bu={},
+                        hiring_model=hiring_model,
+                    )
+            elif include_attrition:
+                # Attrition only
+                employees = apply_attrition(
+                    employees=employees,
+                    performance_reviews=performance,
+                    job_assignments=job_assignments,
+                    rng=self.rng,
+                    start_year=start_date.year,
+                    end_year=end_date.year,
+                    attrition_rate=attrition_rate,
+                    noise_std=noise_std,
+                )
+                job_assignments = close_records_at_termination(job_assignments, employees)
+                org_assignments = close_records_at_termination(org_assignments, employees)
+                if compensation is not None:
+                    compensation = close_records_at_termination(compensation, employees)
+                if performance is not None:
+                    performance = filter_reviews_by_termination(performance, employees)
+
+            # Yield single chunk for non-streaming modes
+            cols_to_drop = [c for c in ["_seniority_level", "_business_unit"] if c in employees.columns]
+            final_employees = employees.drop(columns=cols_to_drop) if cols_to_drop else employees
+            active_count = len(employees[employees["termination_date"].isna()])
+            terminated_ids = employees[employees["termination_date"].notna()]["employee_id"].tolist()
+
+            yield YearlyDataChunk(
+                year=end_date.year,
+                is_initial_year=True,
+                is_final_year=True,
+                employees=final_employees,
+                job_assignments=job_assignments,
+                org_assignments=org_assignments,
+                compensation=compensation,
+                performance=performance,
+                terminated_employee_ids=terminated_ids,
+                new_hires_count=0,
+                terminations_count=len(terminated_ids),
+                active_headcount=active_count,
+                organization_unit=self.reference_data["organization_unit"],
+                job_role=self.reference_data["job_role"],
+                location=self.reference_data["location"],
+            )
+
+    def _simulate_workforce_dynamics_streaming(
+        self,
+        employees: pd.DataFrame,
+        job_assignments: pd.DataFrame,
+        org_assignments: pd.DataFrame,
+        compensation: pd.DataFrame | None,
+        performance: pd.DataFrame | None,
+        start_year: int,
+        end_year: int,
+        attrition_rate: float,
+        noise_std: float,
+        hiring_model: HiringModel,
+    ) -> Iterator[YearlyDataChunk]:
+        """
+        Run year-by-year simulation yielding chunks after each year.
+
+        This is the streaming version of _simulate_workforce_dynamics().
+        Instead of returning final DataFrames, it yields YearlyDataChunk
+        after each year's processing.
+
+        Args:
+            employees: Employee DataFrame with _business_unit column
+            job_assignments: Job assignments DataFrame
+            org_assignments: Org assignments DataFrame
+            compensation: Compensation DataFrame (optional)
+            performance: Performance reviews DataFrame (optional)
+            start_year: First year of simulation
+            end_year: Last year of simulation
+            attrition_rate: Base annual attrition rate
+            noise_std: Noise for attrition probability
+            hiring_model: HiringModel instance for configuration
+
+        Yields:
+            YearlyDataChunk: Data chunk for each simulation year
+        """
+        years = list(range(start_year, end_year + 1))
+        total_years = len(years)
+
+        # Track employees at start of simulation
+        initial_employee_ids = set(employees["employee_id"].tolist())
+
+        for i, year in enumerate(years):
+            is_initial = i == 0
+            is_final = i == total_years - 1
+
+            # Track employee count before changes
+            employees_before = set(employees["employee_id"].tolist())
+            active_before = employees[employees["termination_date"].isna()]["employee_id"].tolist()
+
+            # Step 1: Calculate growth hires based on current active headcount
+            active = employees[employees["termination_date"].isna()]
+            if "_business_unit" in active.columns:
+                headcount_by_bu = active.groupby("_business_unit").size().to_dict()
+            else:
+                headcount_by_bu = {"Unknown": len(active)}
+
+            growth_hires = hiring_model.calculate_growth_hires(headcount_by_bu)
+
+            # Step 2: Apply attrition for this year
+            employees, attrition_by_bu = apply_attrition_for_year(
+                employees=employees,
+                performance_reviews=performance,
+                job_assignments=job_assignments,
+                rng=self.rng,
+                year=year,
+                attrition_rate=attrition_rate,
+                noise_std=noise_std,
+            )
+
+            # Identify terminated employees this year
+            terminated_this_year = employees[
+                (employees["termination_date"].notna()) &
+                (employees["employee_id"].isin(active_before))
+            ]
+            terminated_ids = terminated_this_year["employee_id"].tolist()
+            terminations_count = sum(attrition_by_bu.values())
+
+            # Step 3: Calculate backfill hires
+            backfill_hires = hiring_model.calculate_backfill_hires(attrition_by_bu)
+
+            # Step 4: Apply hiring (growth + backfill)
+            employees, job_assignments, org_assignments, compensation = apply_hiring(
+                employees=employees,
+                job_assignments=job_assignments,
+                org_assignments=org_assignments,
+                compensation=compensation,
+                employee_data=self.employee_data,
+                job_data=self.job_data,
+                org_data=self.org_data,
+                rng=self.rng,
+                year=year,
+                growth_hires_by_bu=growth_hires,
+                backfill_hires_by_bu=backfill_hires,
+                hiring_model=hiring_model,
+            )
+
+            # Count new hires
+            employees_after = set(employees["employee_id"].tolist())
+            new_hire_ids = employees_after - employees_before
+            new_hires_count = len(new_hire_ids)
+
+            # Step 5: Close time-variant records for terminated employees
+            job_assignments = close_records_at_termination(job_assignments, employees)
+            org_assignments = close_records_at_termination(org_assignments, employees)
+            if compensation is not None:
+                compensation = close_records_at_termination(compensation, employees)
+
+            # Final year: filter performance reviews
+            if is_final and performance is not None:
+                performance = filter_reviews_by_termination(performance, employees)
+
+            # Prepare chunk data
+            # For initial year, include reference data
+            # For subsequent years, only include changed/new records
+            cols_to_drop = [c for c in ["_seniority_level", "_business_unit"] if c in employees.columns]
+            chunk_employees = employees.drop(columns=cols_to_drop) if cols_to_drop else employees.copy()
+
+            active_headcount = len(employees[employees["termination_date"].isna()])
+
+            yield YearlyDataChunk(
+                year=year,
+                is_initial_year=is_initial,
+                is_final_year=is_final,
+                employees=chunk_employees,
+                job_assignments=job_assignments,
+                org_assignments=org_assignments,
+                compensation=compensation,
+                performance=performance if is_final else None,  # Only include performance in final year
+                terminated_employee_ids=terminated_ids,
+                new_hires_count=new_hires_count,
+                terminations_count=terminations_count,
+                active_headcount=active_headcount,
+                organization_unit=self.reference_data["organization_unit"] if is_initial else None,
+                job_role=self.reference_data["job_role"] if is_initial else None,
+                location=self.reference_data["location"] if is_initial else None,
+            )
 
 
 def generate_hr_data(

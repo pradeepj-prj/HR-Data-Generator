@@ -206,7 +206,9 @@ class TestGenerateNewHireOrgAssignment:
         assert org_assign["employee_id"] == "EMP000101"
         assert org_assign["start_date"] == date(2023, 6, 15)
         assert org_assign["end_date"] is None
-        assert "org_unit_id" in org_assign
+        assert "org_id" in org_assign
+        assert "org_name" in org_assign
+        assert "business_unit" in org_assign
 
 
 class TestGenerateNewHireCompensation:
@@ -228,7 +230,9 @@ class TestGenerateNewHireCompensation:
         assert comp["start_date"] == date(2023, 6, 15)
         assert comp["end_date"] is None
         assert comp["currency"] == "USD"
-        assert comp["annual_salary"] > 0
+        assert comp["base_salary"] > 0
+        assert comp["bonus_target_pct"] >= 0
+        assert comp["change_reason"] == "New Hire"
 
     def test_salary_increases_with_seniority(self, rng):
         salaries_by_level = {}
@@ -243,7 +247,7 @@ class TestGenerateNewHireCompensation:
                 }
                 job_assign = {"job_id": "JOB001", "seniority_level": level}
                 comp = generate_new_hire_compensation(employee, job_assign, rng)
-                salaries.append(comp["annual_salary"])
+                salaries.append(comp["base_salary"])
             salaries_by_level[level] = np.mean(salaries)
 
         # Higher levels should have higher average salary

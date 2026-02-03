@@ -17,11 +17,14 @@ from .loader import (
     load_org_data,
 )
 from .progress import ProgressCallback, ProgressInfo
+from .streaming import YearlyDataChunk, generate_hr_data_streaming
 
 __version__ = "0.1.0"
 __all__ = [
     "generate_hr_data",
+    "generate_hr_data_streaming",
     "HRDataGenerator",
+    "YearlyDataChunk",
     "load_employee_data",
     "load_job_data",
     "load_org_data",

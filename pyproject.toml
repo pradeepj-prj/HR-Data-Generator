@@ -36,6 +36,10 @@ dev = [
 viz = [
     "plotly>=5.18.0",
 ]
+db = [
+    "psycopg2-binary>=2.9.0",
+    "python-dotenv>=1.0.0",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/hr_data_generator"]
