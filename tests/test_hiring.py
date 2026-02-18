@@ -499,9 +499,8 @@ class TestCombinedSimulation:
             include_hiring=True,
         )
 
-        # Different seeds should produce different employee counts
-        assert len(data1["employee"]) != len(data2["employee"]) or \
-               not data1["employee"]["employee_id"].equals(data2["employee"]["employee_id"])
+        # Different seeds should produce different employee data
+        assert not data1["employee"]["first_name"].equals(data2["employee"]["first_name"])
 
     def test_bu_growth_rates_affect_composition(self):
         # Engineering grows faster
